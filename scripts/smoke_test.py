@@ -60,7 +60,7 @@ def test_tab_player():
     assert text_entries and gp_entries, "expected both text and GP sample tabs"
 
     # --- text player: manual scroll ---
-    screen._open(text_entries[0])()
+    screen._open_local(text_entries[0])()
     assert screen.mode == "play" and screen.kind == "text" and screen.scroller is not None
     sc = screen.scroller
     sc.to_top(); sc.speed = 4.0; sc.playing = True
@@ -71,7 +71,7 @@ def test_tab_player():
     screen._to_browse()
 
     # --- synced GP player: tempo cursor + loop ---
-    screen._open(gp_entries[0])()
+    screen._open_local(gp_entries[0])()
     assert screen.mode == "play" and screen.kind == "synced" and screen.player is not None
     p = screen.player
     p.to_start(); p.playing = True
@@ -90,8 +90,58 @@ def test_tab_player():
           f"text scroll {expected:.1f} lines/1s, synced {expected_beats:.1f} beats/1s, A/B loop OK")
 
 
+def test_songsterr_flow():
+    import time
+    from tabby.tabs import songsterr as ss
+    from tabby.tabs.model import TimedBeat, TimedNote, TimedSong, TimedTrack
+
+    # Mock the network so the test is offline + deterministic.
+    ss.search = lambda q, size=24: [ss.SongResult(1, "Metallica", "One", True)]
+    ss.tracks = lambda sid: [ss.TrackInfo(0, "Distortion Guitar", "Lead", False, False),
+                             ss.TrackInfo(1, "Voice", "Vocals", True, False)]
+
+    def fake_load(sid, idx):
+        beats = [TimedBeat(start=float(i), duration=1.0, notes=[TimedNote(1, i % 6)]) for i in range(8)]
+        return TimedSong("One", "Metallica", 120.0, [TimedTrack("Lead", [64, 59, 55, 50, 45, 40], beats)])
+    ss.load_song = fake_load
+
+    def wait(screen, timeout=3.0):
+        t0 = time.time()
+        while screen._loading and time.time() - t0 < timeout:
+            screen.update(0.01)
+            time.sleep(0.005)
+        screen.update(0.01)
+
+    app = App(fullscreen=False, scale=2)
+    app.navigate("tabs")
+    screen = app.current
+
+    screen._to_search()
+    assert screen.mode == "search" and screen.kb is not None
+    screen.kb.text = "one"
+    screen.kb._submit()             # -> async search
+    wait(screen)
+    assert screen.mode == "results" and screen.results, "search produced no results"
+
+    screen._pick_song(screen.results[0])()   # -> async tracks
+    wait(screen)
+    assert screen.mode == "tracks" and screen.track_infos
+
+    screen._pick_track(screen.track_infos[0])()   # -> async load_song
+    wait(screen)
+    assert screen.mode == "play" and screen.kind == "synced" and screen.player is not None
+    p = screen.player
+    p.playing = True
+    for _ in range(20):
+        screen.update(0.05)
+    assert p.pos > 0, "synced Songsterr playback did not advance"
+    app._shutdown()
+    print("  songsterr flow: search -> results -> track -> synced play OK")
+
+
 if __name__ == "__main__":
     test_pitch()
     test_screens()
     test_tab_player()
+    test_songsterr_flow()
     print("SMOKE TEST PASSED")

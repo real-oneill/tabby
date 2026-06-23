@@ -58,7 +58,7 @@ def main():
     save(app, "tabs_browse")
     # Text player: open a text tab and scroll partway in.
     text_entry = next(e for e in tabs.entries if e.kind == "text")
-    tabs._open(text_entry)()
+    tabs._open_local(text_entry)()
     tabs.scroller.speed = 3.0
     tabs.scroller.playing = True
     for _ in range(40):
@@ -68,7 +68,7 @@ def main():
     tabs._to_browse()
     # Synced GP player: open the Guitar Pro demo, play in a bit, set an A/B loop.
     gp_entry = next(e for e in tabs.entries if e.kind == "gp")
-    tabs._open(gp_entry)()
+    tabs._open_local(gp_entry)()
     tabs.player.playing = True
     for _ in range(70):
         tabs.update(0.05)
@@ -79,6 +79,18 @@ def main():
     tabs.player.pos = 3.2
     tabs.update(0.0)
     save(app, "tabs_synced")
+    # Songsterr search keyboard.
+    tabs._to_search()
+    tabs.kb.text = "master of puppets"
+    save(app, "tabs_search")
+    # Songsterr results (mocked, no network).
+    from tabby.tabs import songsterr as ss
+    tabs._on_results([
+        ss.SongResult(455118, "Metallica", "Master of Puppets", True),
+        ss.SongResult(15366, "Primus", "Master of Puppets", True),
+        ss.SongResult(393819, "Metallica", "Master of Puppets (Acoustic)", True),
+    ])
+    save(app, "tabs_results")
     app.go_back()
 
     app._shutdown()

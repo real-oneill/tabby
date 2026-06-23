@@ -9,10 +9,13 @@ Target hardware: Raspberry Pi 5, 5" DSI display (800×480 IPS), USB microphone.
 
 - **Tuner** — real-time pitch detection from the mic, with an 8-bit note display.
 - **Metronome** — tempo / tap-tempo, time signature, beat-1 accent, synced beat dots.
-- **Tab player** — two modes from one browser:
+- **Tab player** — browse local tabs or search Songsterr, in three flavors:
   - **Text tabs** (`.txt`) — manual-speed vertical auto-scroll, play/pause, drag-to-scrub, jump-to-top.
   - **Guitar Pro** (`.gp3/.gp4/.gp5`) — tempo-synced playback with a scrolling time-axis staff,
     practice slow-down, A/B looping, and track select.
+  - **Songsterr search** — on-screen keyboard → search the Songsterr catalog → pick a song and
+    track → plays in the same tempo-synced view. Unofficial/personal-use; results are cached in
+    `~/.cache/tabby`.
 - **Assistant** *(coming soon)* — practice help via the Databricks AI Gateway.
 
 ### Adding your own tabs
