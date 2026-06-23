@@ -52,14 +52,14 @@ class HomeScreen(Screen):
                        color=color, text_color=theme.BLACK, font_size=12)
             )
 
-        # POWER tile fills the empty sixth grid slot (row 1, col 2).
+        # Small POWER button tucked into the bottom-right corner.
         self.power_btn = None
         if _CAN_POWER_OFF:
-            row, col = divmod(len(self.TILES), cols)
-            x = margin + col * (tile_w + gap)
-            y = area_top + row * (tile_h + gap)
-            self.power_btn = Button((x, y, tile_w, tile_h), "POWER", self._ask_power_off,
-                                    color=theme.RED, text_color=theme.WHITE, font_size=12)
+            bw, bh = 58, 16
+            x = theme.INTERNAL_W - margin - bw
+            y = theme.INTERNAL_H - margin - bh
+            self.power_btn = Button((x, y, bw, bh), "POWER", self._ask_power_off,
+                                    color=theme.RED, text_color=theme.WHITE, font_size=8)
 
         # Confirmation modal buttons (only used while self.confirming).
         modal = pygame.Rect(0, 0, 220, 96)
