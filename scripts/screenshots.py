@@ -54,7 +54,16 @@ def main():
     app.go_back()
 
     app.navigate("tabs")
-    save(app, "tabs")
+    tabs = app.current
+    save(app, "tabs_browse")
+    # Open a tab and scroll partway in for the player view.
+    tabs._open(tabs.entries[0].path)()
+    tabs.scroller.speed = 3.0
+    tabs.scroller.playing = True
+    for _ in range(40):
+        tabs.update(0.05)
+    tabs.update(0.0)
+    save(app, "tabs_play")
     app.go_back()
 
     app._shutdown()

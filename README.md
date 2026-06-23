@@ -9,8 +9,16 @@ Target hardware: Raspberry Pi 5, 5" DSI display (800×480 IPS), USB microphone.
 
 - **Tuner** — real-time pitch detection from the mic, with an 8-bit note display.
 - **Metronome** — tempo / tap-tempo, time signature, beat-1 accent, synced beat dots.
-- **Tab player** *(coming soon)* — live scrolling + A/B looping. ASCII first, Guitar Pro later.
+- **Tab player** — read plain-text (`.txt`) tabs with a manual-speed vertical auto-scroll,
+  play/pause, drag-to-scrub, and jump-to-top. Tempo-synced Guitar Pro / Songsterr playback
+  is a later milestone.
 - **Assistant** *(coming soon)* — practice help via the Databricks AI Gateway.
+
+### Adding your own tabs
+
+Drop `.txt` tab files into `~/tabby-tabs/` (configurable via `tabs_dir` in
+`~/.config/tabby/settings.json`). A few public-domain samples ship in `assets/tabs/`.
+Name files `Artist - Title.txt` to show both, or just `Title.txt`.
 
 ## Running (dev, on a Mac or the Pi)
 
@@ -41,8 +49,10 @@ tabby/
   audio/engine.py       sounddevice input/output wrapper
   audio/pitch.py        YIN/autocorrelation pitch detection
   audio/click.py        metronome click generation + scheduler
+  tabs/                 text tab model, scroller, renderer, sources, library
   screens/              home, tuner, metronome, settings, tabplayer, assistant
 assets/
   fonts/                Press Start 2P
+  tabs/                 bundled public-domain sample tabs
   sounds/               generated click samples (optional)
 ```

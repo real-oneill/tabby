@@ -18,6 +18,9 @@ DEFAULTS: dict[str, Any] = {
     "tempo": 120,            # metronome BPM
     "beats_per_measure": 4,  # metronome time signature numerator
     "accent_beat_one": True,
+    "tabs_dir": "~/tabby-tabs",  # where the user drops their own .txt tabs
+    "last_tab": None,            # path of the most recently opened tab
+    "scroll_speed": 2.0,         # tab auto-scroll speed, lines/second
 }
 
 
