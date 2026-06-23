@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from . import gp_loader
 from .sources import local_text
 
 # Bundled sample tabs shipped with the app (repo: assets/tabs).
@@ -14,15 +15,18 @@ _BUNDLED_DIR = os.path.join(
     "tabs",
 )
 
+_EXTENSIONS = (".txt",) + gp_loader.GP_EXTENSIONS
+
 
 @dataclass
 class TabEntry:
     path: str
     name: str
+    kind: str  # "text" | "gp"
 
 
 class TabLibrary:
-    """Lists text tabs from the configured tabs dir plus the bundled samples."""
+    """Lists text and Guitar Pro tabs from the tabs dir plus bundled samples."""
 
     def __init__(self, tabs_dir: str) -> None:
         self.tabs_dir = os.path.expanduser(tabs_dir)
@@ -33,12 +37,17 @@ class TabLibrary:
 
     def entries(self) -> list[TabEntry]:
         out: list[TabEntry] = []
-        for path in local_text.list_files(self._dirs()):
+        for path in local_text.list_files(self._dirs(), _EXTENSIONS):
             stem = os.path.splitext(os.path.basename(path))[0]
             name = stem if " - " in stem else stem.replace("_", " ").replace("-", " ").strip()
-            out.append(TabEntry(path=path, name=name.upper()))
+            kind = "gp" if gp_loader.is_gp_file(path) else "text"
+            out.append(TabEntry(path=path, name=name.upper(), kind=kind))
         return out
 
     @staticmethod
-    def load(path: str):
+    def load_text(path: str):
         return local_text.load(path)
+
+    @staticmethod
+    def load_gp(path: str):
+        return gp_loader.load(path)

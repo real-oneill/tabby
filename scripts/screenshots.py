@@ -56,14 +56,29 @@ def main():
     app.navigate("tabs")
     tabs = app.current
     save(app, "tabs_browse")
-    # Open a tab and scroll partway in for the player view.
-    tabs._open(tabs.entries[0].path)()
+    # Text player: open a text tab and scroll partway in.
+    text_entry = next(e for e in tabs.entries if e.kind == "text")
+    tabs._open(text_entry)()
     tabs.scroller.speed = 3.0
     tabs.scroller.playing = True
     for _ in range(40):
         tabs.update(0.05)
     tabs.update(0.0)
-    save(app, "tabs_play")
+    save(app, "tabs_text")
+    tabs._to_browse()
+    # Synced GP player: open the Guitar Pro demo, play in a bit, set an A/B loop.
+    gp_entry = next(e for e in tabs.entries if e.kind == "gp")
+    tabs._open(gp_entry)()
+    tabs.player.playing = True
+    for _ in range(70):
+        tabs.update(0.05)
+    tabs.player.pos = 2.5
+    tabs.player.set_a()
+    tabs.player.pos = 5.5
+    tabs.player.set_b()
+    tabs.player.pos = 3.2
+    tabs.update(0.0)
+    save(app, "tabs_synced")
     app.go_back()
 
     app._shutdown()

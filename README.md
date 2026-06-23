@@ -9,16 +9,17 @@ Target hardware: Raspberry Pi 5, 5" DSI display (800×480 IPS), USB microphone.
 
 - **Tuner** — real-time pitch detection from the mic, with an 8-bit note display.
 - **Metronome** — tempo / tap-tempo, time signature, beat-1 accent, synced beat dots.
-- **Tab player** — read plain-text (`.txt`) tabs with a manual-speed vertical auto-scroll,
-  play/pause, drag-to-scrub, and jump-to-top. Tempo-synced Guitar Pro / Songsterr playback
-  is a later milestone.
+- **Tab player** — two modes from one browser:
+  - **Text tabs** (`.txt`) — manual-speed vertical auto-scroll, play/pause, drag-to-scrub, jump-to-top.
+  - **Guitar Pro** (`.gp3/.gp4/.gp5`) — tempo-synced playback with a scrolling time-axis staff,
+    practice slow-down, A/B looping, and track select.
 - **Assistant** *(coming soon)* — practice help via the Databricks AI Gateway.
 
 ### Adding your own tabs
 
-Drop `.txt` tab files into `~/tabby-tabs/` (configurable via `tabs_dir` in
-`~/.config/tabby/settings.json`). A few public-domain samples ship in `assets/tabs/`.
-Name files `Artist - Title.txt` to show both, or just `Title.txt`.
+Drop `.txt` or Guitar Pro (`.gp3/.gp4/.gp5`) files into `~/tabby-tabs/` (configurable via
+`tabs_dir` in `~/.config/tabby/settings.json`). Public-domain text samples and a generated
+Guitar Pro demo ship in `assets/tabs/`. Name files `Artist - Title.ext` to show both.
 
 ## Running (dev, on a Mac or the Pi)
 

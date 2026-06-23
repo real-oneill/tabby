@@ -17,7 +17,7 @@ def draw_panel(surface, rect, fill=theme.PANEL, border=theme.PANEL_BORDER, width
         pygame.draw.rect(surface, border, rect, width)
 
 
-def draw_text(surface, text, size, color, center=None, topleft=None, midleft=None):
+def draw_text(surface, text, size, color, center=None, topleft=None, midleft=None, midright=None):
     """Render pixel text and blit it, positioned by one of the anchor kwargs."""
     img = theme.font(size).render(text, False, color)
     rect = img.get_rect()
@@ -27,6 +27,8 @@ def draw_text(surface, text, size, color, center=None, topleft=None, midleft=Non
         rect.topleft = topleft
     elif midleft is not None:
         rect.midleft = midleft
+    elif midright is not None:
+        rect.midright = midright
     surface.blit(img, rect)
     return rect
 

@@ -1,3 +1,4 @@
 pygame-ce>=2.5
 numpy>=1.26
 sounddevice>=0.4
+PyGuitarPro>=0.9   # parse .gp3/.gp4/.gp5 for the tempo-synced tab player

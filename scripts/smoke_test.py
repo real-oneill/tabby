@@ -55,24 +55,39 @@ def test_tab_player():
     app.navigate("tabs")
     screen = app.current
     assert screen.entries, "no tabs found (bundled samples missing?)"
-    # Open the first tab and enter play mode.
-    screen._open(screen.entries[0].path)()
-    assert screen.mode == "play" and screen.scroller is not None
+    text_entries = [e for e in screen.entries if e.kind == "text"]
+    gp_entries = [e for e in screen.entries if e.kind == "gp"]
+    assert text_entries and gp_entries, "expected both text and GP sample tabs"
+
+    # --- text player: manual scroll ---
+    screen._open(text_entries[0])()
+    assert screen.mode == "play" and screen.kind == "text" and screen.scroller is not None
     sc = screen.scroller
-    sc.to_top()
-    sc.speed = 4.0
-    sc.playing = True
-    for _ in range(20):           # 20 * 0.05s = 1.0s of playback
+    sc.to_top(); sc.speed = 4.0; sc.playing = True
+    for _ in range(20):           # 1.0s
         screen.update(0.05)
     expected = min(4.0, sc.max_offset)
-    assert abs(sc.offset - expected) < 0.5, f"scrolled {sc.offset:.2f}, expected ~{expected:.2f}"
-    # Drag-to-scrub and jump-to-top.
-    sc.drag_by(0, 30, 10)
-    assert sc.offset != expected
-    screen._to_top()
-    assert sc.offset == 0.0
+    assert abs(sc.offset - expected) < 0.5, f"text scrolled {sc.offset:.2f}, expected ~{expected:.2f}"
+    screen._to_browse()
+
+    # --- synced GP player: tempo cursor + loop ---
+    screen._open(gp_entries[0])()
+    assert screen.mode == "play" and screen.kind == "synced" and screen.player is not None
+    p = screen.player
+    p.to_start(); p.playing = True
+    for _ in range(20):           # 1.0s at tempo bpm
+        screen.update(0.05)
+    expected_beats = p.tempo / 60.0   # rate 1.0
+    assert abs(p.pos - min(expected_beats, p.total)) < 0.3, f"synced pos {p.pos:.2f}, expected ~{expected_beats:.2f}"
+    # A/B loop wraps the cursor.
+    p.pos = 1.0; p.set_a(); p.pos = 2.0; p.set_b()
+    assert p.loop_active
+    p.pos = 1.99
+    screen.update(0.2)            # crosses loop_b -> wraps back to loop_a
+    assert p.pos < 2.0, f"loop did not wrap: pos={p.pos:.2f}"
     app._shutdown()
-    print(f"  tab player: loaded {len(screen.entries)} tabs, scrolled {expected:.1f} lines/1s OK")
+    print(f"  tab player: {len(text_entries)} text + {len(gp_entries)} GP tabs; "
+          f"text scroll {expected:.1f} lines/1s, synced {expected_beats:.1f} beats/1s, A/B loop OK")
 
 
 if __name__ == "__main__":

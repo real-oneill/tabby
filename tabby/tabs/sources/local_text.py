@@ -7,15 +7,15 @@ import os
 from ..textmodel import TextTab, parse_text
 
 
-def list_files(dirs: list[str]) -> list[str]:
-    """Return ``.txt`` paths across ``dirs``, de-duplicated and sorted by name."""
+def list_files(dirs: list[str], extensions: tuple[str, ...] = (".txt",)) -> list[str]:
+    """Return matching paths across ``dirs``, de-duplicated and sorted by name."""
     seen: dict[str, str] = {}  # basename(lower) -> path, so a user file shadows a sample
     for d in dirs:
         d = os.path.expanduser(d)
         if not os.path.isdir(d):
             continue
         for entry in sorted(os.listdir(d)):
-            if entry.lower().endswith(".txt"):
+            if entry.lower().endswith(extensions):
                 seen.setdefault(entry.lower(), os.path.join(d, entry))
     return [seen[k] for k in sorted(seen)]
 
