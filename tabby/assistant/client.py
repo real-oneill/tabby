@@ -21,7 +21,8 @@ import urllib.parse
 import urllib.request
 
 _CONFIG_PATH = os.path.expanduser("~/.config/tabby/assistant.json")
-_TIMEOUT = 30
+_TIMEOUT = 20            # auth/token
+_INVOKE_TIMEOUT = 120    # endpoint query (scale-to-zero cold start can be slow)
 
 # Interim "fm" mode prompt: lets the Pi talk to a foundation-model endpoint directly
 # with the same action protocol, before/without the custom agent being deployed. The
@@ -114,7 +115,7 @@ class AgentClient:
             "Content-Type": "application/json",
         })
         try:
-            with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
+            with urllib.request.urlopen(req, timeout=_INVOKE_TIMEOUT) as resp:
                 data = json.load(resp)
         except Exception as exc:  # noqa: BLE001
             raise AgentError(str(exc)) from exc
