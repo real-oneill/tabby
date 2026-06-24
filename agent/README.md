@@ -19,13 +19,17 @@ Actions: `navigate(screen)`, `set_tempo(bpm)`, `metronome(running)`,
 `search_and_load(query)`, `identify_and_load`.
 
 ## Deploy
-Easiest is a Databricks notebook (mlflow/databricks-agents are preinstalled):
-upload `tabby_agent.py` + `deploy.py`, then run `deploy.py`. It registers
-`workspace.default.tabby_assistant` and deploys the `tabby-assistant` endpoint.
-Grant the Tabby service principal `CAN_QUERY` on the endpoint.
+Runs **inside Databricks** (mlflow/databricks-agents are preinstalled there) — never on
+the Pi. `deploy.py` registers the model under the **`tabby` catalog**
+(`tabby.assistant.tabby_assistant`) and deploys the `tabby-assistant` serving endpoint
+(scale-to-zero, required on Free Edition).
 
-(Deploying from a laptop also works if `pip install -r requirements.txt` succeeds and
-`DATABRICKS_HOST` + `DATABRICKS_CLIENT_ID` + `DATABRICKS_CLIENT_SECRET` are set.)
+The service principal needs access to the `tabby` catalog first (run as the catalog owner):
+```sql
+GRANT ALL PRIVILEGES ON CATALOG tabby TO `<sp-application-id>`;
+```
+Then run `deploy.py` from a Databricks notebook/job (this repo drives it over the Jobs REST
+API). Free Edition serverless builds the endpoint container in ~10-20 min.
 
 ## Pi client
 The Pi (`tabby/assistant/client.py`) authenticates as the service principal (OAuth M2M)
