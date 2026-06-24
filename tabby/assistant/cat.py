@@ -46,7 +46,7 @@ _SPRITE = [
     (12, 15, 2, 1, _N), (11, 14, 2, 1, _N), (10, 13, 2, 1, _N), (9, 12, 2, 1, _N),
     (8, 11, 2, 1, _N), (7, 10, 2, 1, _N), (6, 9, 2, 1, _N), (5, 8, 2, 1, _N),
     (4, 7, 2, 2, _D),
-    (9, 12, 1, 1, _S), (7, 10, 1, 1, _S),                # string glints
+    (9, 12, 1, 1, _D), (7, 10, 1, 1, _D),                # fret marks on the neck
     # guitar body (blocky oval) + soundhole + bridge
     (15, 14, 5, 1, _G), (14, 15, 7, 1, _G), (13, 16, 9, 4, _G),
     (14, 20, 7, 1, _G), (15, 21, 5, 1, _G),
@@ -99,11 +99,11 @@ class Cat:
             px(8, 5, 2, 2, _O)
             px(14, 5, 2, 2, _O)
 
-        # Picking paw: two strum positions (up/down) over the soundhole.
-        strum = self.state in ("idle", "replying")
+        # Strumming paw on the guitar body (small bob), consistent in every state.
         period = 0.25 if self.state == "replying" else 0.55
-        down = strum and (int(self.t / period) % 2 == 0)
-        px(17, 16 if down else 18, 2, 2, _O)
+        moving = self.state in ("idle", "replying")
+        down = moving and (int(self.t / period) % 2 == 0)
+        px(14, 18 if down else 17, 2, 2, _O)
 
         # Thinking dots above the head.
         if self.state == "thinking":
