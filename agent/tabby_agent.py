@@ -40,8 +40,6 @@ Rules:
 - Combine actions when natural (e.g. set_tempo then metronome running:true).
 - Keep "reply" short, friendly, plain text. Never include markdown or code fences."""
 
-mlflow.openai.autolog()
-
 
 def _extract_json(text: str) -> dict[str, Any]:
     """Pull the JSON object out of the model's reply, tolerating stray prose/fences."""

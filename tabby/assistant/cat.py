@@ -1,41 +1,67 @@
-"""An animated 8-bit cat playing a guitar, drawn procedurally on the canvas."""
+"""An 8/16-bit pixel-sprite cat playing a guitar.
+
+Everything is drawn as solid blocks snapped to a coarse pixel grid (CELL per sprite
+pixel), so it reads as a chunky retro sprite rather than smooth vector art. Two strum
+frames are animated by moving the picking paw.
+"""
 
 from __future__ import annotations
-
-import math
 
 import pygame
 
 from .. import theme
 
-# Local palette (theme has no tan/string colors).
-_BODY = theme.ORANGE
-_BODY_DK = theme.BROWN
-_INNER = theme.MAGENTA          # ear / nose
-_MUZZLE = theme.WHITE
-_EYE = theme.BLACK
-_GTR = theme.BROWN
-_GTR_DK = (92, 56, 24)
-_NECK = (180, 140, 90)
-_STRING = (210, 210, 210)
-_HOLE = theme.BLACK
-_NOTE = theme.ACCENT_ALT
+CELL = 4                      # internal pixels per sprite-pixel (chunky)
+_GW, _GH = 24, 22             # sprite grid size in cells
 
-# Animation cadence per state: (strum beats/sec, note spawn rate/sec).
-_STATE_TEMPO = {
-    "idle": (1.6, 0.0),
-    "listening": (0.0, 0.0),
-    "thinking": (0.0, 0.0),
-    "replying": (4.0, 4.0),
-}
+# Palette.
+_O = theme.ORANGE
+_D = theme.BROWN              # outline / shading
+_W = theme.WHITE
+_K = theme.BLACK
+_P = theme.MAGENTA           # nose / inner ear
+_G = (150, 96, 40)           # guitar wood
+_N = (198, 158, 108)         # neck
+_S = (220, 220, 220)         # strings
+_A = theme.ACCENT_ALT        # music notes
+
+# Static blocks: (col, row, w, h, color). Drawn back-to-front.
+_SPRITE = [
+    # ears
+    (5, 1, 3, 2, _O), (6, 0, 1, 1, _O), (6, 1, 1, 1, _P),
+    (16, 1, 3, 2, _O), (17, 0, 1, 1, _O), (17, 1, 1, 1, _P),
+    # head
+    (7, 2, 10, 1, _O), (6, 3, 12, 1, _O), (5, 4, 14, 5, _O),
+    (6, 9, 12, 1, _O), (7, 10, 10, 1, _O),
+    # eyes + shine
+    (8, 5, 2, 2, _K), (14, 5, 2, 2, _K), (9, 5, 1, 1, _W), (15, 5, 1, 1, _W),
+    # muzzle + nose
+    (9, 7, 6, 3, _W), (11, 7, 2, 1, _P),
+    # body
+    (6, 11, 12, 1, _O), (5, 12, 14, 8, _O), (6, 20, 12, 1, _O),
+    (8, 14, 5, 5, _W),                                   # belly
+    # tail
+    (3, 16, 2, 2, _O), (2, 17, 1, 2, _O),
+    # guitar neck (stepped up-left) + headstock
+    (12, 15, 2, 1, _N), (11, 14, 2, 1, _N), (10, 13, 2, 1, _N), (9, 12, 2, 1, _N),
+    (8, 11, 2, 1, _N), (7, 10, 2, 1, _N), (6, 9, 2, 1, _N), (5, 8, 2, 1, _N),
+    (4, 7, 2, 2, _D),
+    (9, 12, 1, 1, _S), (7, 10, 1, 1, _S),                # string glints
+    # guitar body (blocky oval) + soundhole + bridge
+    (15, 14, 5, 1, _G), (14, 15, 7, 1, _G), (13, 16, 9, 4, _G),
+    (14, 20, 7, 1, _G), (15, 21, 5, 1, _G),
+    (16, 17, 2, 2, _K), (15, 19, 4, 1, _D),
+    # fretting paw on the neck
+    (4, 9, 2, 2, _O),
+]
 
 
 class Cat:
     def __init__(self) -> None:
         self.t = 0.0
         self.state = "idle"
-        self.blink = 0.0
-        self._notes: list[list[float]] = []   # [x, y, age, drift]
+        self._blink = 0.0
+        self._notes: list[float] = []
         self._note_acc = 0.0
 
     def set_state(self, state: str) -> None:
@@ -46,120 +72,49 @@ class Cat:
 
     def update(self, dt: float) -> None:
         self.t += dt
-        self.blink = (self.blink + dt) % 4.0
-        rate = _STATE_TEMPO.get(self.state, (1.6, 0.0))[1]
+        self._blink = (self._blink + dt) % 4.0
+        rate = 4.0 if self.state == "replying" else (1.4 if self.state == "idle" else 0.0)
         if rate:
-            self._note_acc += dt * rate
+            self._note_acc += dt * (rate if self.state == "replying" else 0.0)
             while self._note_acc >= 1.0:
                 self._note_acc -= 1.0
-                self._notes.append([0.0, 0.0, 0.0, (-1.0 if len(self._notes) % 2 else 1.0)])
-        for n in self._notes:
-            n[2] += dt
-        self._notes = [n for n in self._notes if n[2] < 1.4]
+                self._notes.append(0.0)
+        self._notes = [a + dt for a in self._notes]
+        self._notes = [a for a in self._notes if a < 1.4]
 
     # --- drawing ----------------------------------------------------------
 
     def draw(self, surface, center) -> None:
-        cx, cy = center
-        strum = _STATE_TEMPO.get(self.state, (1.6, 0.0))[0]
-        phase = math.sin(self.t * strum * 2 * math.pi) if strum else 0.0
+        ox = center[0] - (_GW * CELL) // 2
+        oy = center[1] - (_GH * CELL) // 2
 
-        self._body(surface, cx, cy)
-        self._head(surface, cx, cy)
-        self._guitar(surface, cx, cy)
-        self._paws(surface, cx, cy, phase)
+        def px(c, r, w, h, color):
+            surface.fill(color, (ox + c * CELL, oy + r * CELL, w * CELL, h * CELL))
+
+        for c, r, w, h, color in _SPRITE:
+            px(c, r, w, h, color)
+
+        # Blink: drop a skin-colored bar over the eyes briefly each cycle.
+        if self._blink > 3.8:
+            px(8, 5, 2, 2, _O)
+            px(14, 5, 2, 2, _O)
+
+        # Picking paw: two strum positions (up/down) over the soundhole.
+        strum = self.state in ("idle", "replying")
+        period = 0.25 if self.state == "replying" else 0.55
+        down = strum and (int(self.t / period) % 2 == 0)
+        px(17, 16 if down else 18, 2, 2, _O)
+
+        # Thinking dots above the head.
         if self.state == "thinking":
-            self._thought(surface, cx, cy)
-        self._draw_notes(surface, cx, cy)
+            n = int(self.t * 3) % 4
+            for i in range(3):
+                px(19 + i, 2, 1, 1, _W if i < n else _D)
 
-    def _body(self, surface, cx, cy) -> None:
-        # Sitting haunch.
-        pygame.draw.ellipse(surface, _BODY, (cx - 26, cy + 2, 52, 46))
-        pygame.draw.ellipse(surface, _BODY_DK, (cx - 26, cy + 2, 52, 46), 1)
-        pygame.draw.ellipse(surface, _MUZZLE, (cx - 12, cy + 16, 24, 28))
-        # Tail curling out to the left.
-        pygame.draw.arc(surface, _BODY, (cx - 48, cy + 14, 34, 34), 0.4, 2.6, 5)
-
-    def _head(self, surface, cx, cy) -> None:
-        hy = cy - 18
-        # Ears.
-        for sx in (-1, 1):
-            base = cx + sx * 16
-            pygame.draw.polygon(surface, _BODY, [(base - 8, hy - 12), (base + 8, hy - 12), (base + sx * 2, hy - 26)])
-            pygame.draw.polygon(surface, _INNER, [(base - 3, hy - 14), (base + 3, hy - 14), (base + sx * 1, hy - 22)])
-        # Head.
-        pygame.draw.circle(surface, _BODY, (cx, hy), 22)
-        pygame.draw.circle(surface, _BODY_DK, (cx, hy), 22, 1)
-        # Muzzle.
-        pygame.draw.ellipse(surface, _MUZZLE, (cx - 13, hy + 2, 26, 16))
-        # Eyes (blink: a short closed window each cycle).
-        closed = self.blink > 3.8
-        for sx in (-1, 1):
-            ex = cx + sx * 9
-            if closed:
-                pygame.draw.line(surface, _EYE, (ex - 3, hy - 3), (ex + 3, hy - 3), 2)
-            else:
-                pygame.draw.circle(surface, _EYE, (ex, hy - 3), 3)
-                pygame.draw.circle(surface, _MUZZLE, (ex + 1, hy - 4), 1)
-        # Nose + mouth.
-        pygame.draw.polygon(surface, _INNER, [(cx - 3, hy + 6), (cx + 3, hy + 6), (cx, hy + 9)])
-        pygame.draw.line(surface, _BODY_DK, (cx, hy + 9), (cx, hy + 12), 1)
-        pygame.draw.arc(surface, _BODY_DK, (cx - 7, hy + 8, 7, 7), 3.6, 6.0, 1)
-        pygame.draw.arc(surface, _BODY_DK, (cx, hy + 8, 7, 7), 3.4, 5.8, 1)
-        # Whiskers.
-        for dy in (8, 12):
-            pygame.draw.line(surface, _MUZZLE, (cx - 8, hy + dy), (cx - 22, hy + dy - 2), 1)
-            pygame.draw.line(surface, _MUZZLE, (cx + 8, hy + dy), (cx + 22, hy + dy - 2), 1)
-
-    def _guitar(self, surface, cx, cy) -> None:
-        # Acoustic held across the lap: body lower-right, neck up to the upper-left.
-        self._neck_end = (cx - 34, cy - 18)
-        self._body_pt = (cx + 14, cy + 24)
-        nx, ny = self._neck_end
-        bx, by = self._body_pt
-        # Neck (drawn first, body sits over its lower end).
-        pygame.draw.line(surface, _NECK, (bx - 4, by - 6), (nx, ny), 7)
-        pygame.draw.line(surface, _GTR_DK, (nx, ny), (nx - 6, ny - 4), 8)   # headstock
-        # Figure-8 body: lower bout + smaller upper bout.
-        pygame.draw.ellipse(surface, _GTR, (bx - 17, by - 6, 34, 30))
-        pygame.draw.ellipse(surface, _GTR, (bx - 13, by - 20, 26, 24))
-        pygame.draw.ellipse(surface, _GTR_DK, (bx - 17, by - 6, 34, 30), 1)
-        pygame.draw.circle(surface, _HOLE, (bx, by + 4), 5)
-        pygame.draw.line(surface, _GTR_DK, (bx - 7, by + 14), (bx + 7, by + 14), 2)  # bridge
-        # Frets across the neck.
-        for f in range(1, 5):
-            fx = int(nx + (bx - 6 - nx) * f / 5)
-            fy = int(ny + (by - 6 - ny) * f / 5)
-            pygame.draw.line(surface, _GTR_DK, (fx - 2, fy - 2), (fx + 2, fy + 2), 1)
-        # Strings down the neck to the bridge.
-        for off in (-2, 0, 2):
-            pygame.draw.line(surface, _STRING, (nx, ny + off), (bx + off, by + 14), 1)
-
-    def _paws(self, surface, cx, cy, phase) -> None:
-        bx, by = self._body_pt
-        nx, ny = self._neck_end
-        # Strumming paw over the soundhole, bobbing with the strum phase.
-        sy = by + 3 + int(phase * 6)
-        pygame.draw.circle(surface, _BODY, (bx + 9, sy), 5)
-        pygame.draw.circle(surface, _BODY_DK, (bx + 9, sy), 5, 1)
-        # Fretting paw on the neck near the headstock.
-        pygame.draw.circle(surface, _BODY, (nx + 10, ny + 4), 5)
-        pygame.draw.circle(surface, _BODY_DK, (nx + 10, ny + 4), 5, 1)
-
-    def _thought(self, surface, cx, cy) -> None:
-        n = int(self.t * 2) % 4
-        for i in range(3):
-            on = i < n
-            col = _MUZZLE if on else theme.SHADOW
-            pygame.draw.circle(surface, col, (cx + 26 + i * 7, cy - 40), 2)
-
-    def _draw_notes(self, surface, cx, cy) -> None:
-        bx, by = cx + 24, cy + 18      # rise up from the guitar, off to the side
-        for x, y, age, drift in self._notes:
-            ny = by - int(age * 34)
-            nx = bx + int(drift * age * 14)
-            alpha = 1.0 - age / 1.4
-            col = _NOTE if alpha > 0.4 else theme.SHADOW
-            pygame.draw.circle(surface, col, (nx, ny), 2)
-            pygame.draw.line(surface, col, (nx + 2, ny), (nx + 2, ny - 6), 1)
-            pygame.draw.line(surface, col, (nx + 2, ny - 6), (nx + 5, ny - 5), 1)
+        # Rising music notes when replying.
+        for age in self._notes:
+            r = 14 - int(age * 9)
+            c = 20 + (1 if int(age * 6) % 2 else 0)
+            color = _A if age < 1.0 else _D
+            px(c, r, 1, 1, color)
+            px(c + 1, r - 1, 1, 1, color)

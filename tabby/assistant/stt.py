@@ -48,14 +48,28 @@ class VoiceInput:
 
     # --- capture + transcribe --------------------------------------------
 
+    def _capture_rate(self) -> int:
+        """16 kHz if the mic supports it, else the device's native rate (resampled)."""
+        try:
+            _sd.check_input_settings(device=self.input_device, samplerate=_SAMPLE_RATE, channels=1)
+            return _SAMPLE_RATE
+        except Exception:  # noqa: BLE001
+            dev = self.input_device if self.input_device is not None else _sd.default.device[0]
+            return int(_sd.query_devices(dev, "input")["default_samplerate"])
+
     def record(self, seconds: float) -> np.ndarray:
         if _sd is None:
             raise RuntimeError("no audio input library")
-        frames = int(seconds * _SAMPLE_RATE)
-        audio = _sd.rec(frames, samplerate=_SAMPLE_RATE, channels=1,
+        rate = self._capture_rate()
+        audio = _sd.rec(int(seconds * rate), samplerate=rate, channels=1,
                         dtype="float32", device=self.input_device)
         _sd.wait()
-        return audio.reshape(-1)
+        audio = audio.reshape(-1)
+        if rate != _SAMPLE_RATE:                      # whisper needs 16 kHz mono
+            n = int(len(audio) * _SAMPLE_RATE / rate)
+            audio = np.interp(np.linspace(0, len(audio), n, endpoint=False),
+                              np.arange(len(audio)), audio).astype(np.float32)
+        return audio
 
     def transcribe(self, audio: np.ndarray) -> str:
         model = self._ensure_model()
