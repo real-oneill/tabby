@@ -1,8 +1,8 @@
 """An 8/16-bit pixel-sprite cat playing a guitar.
 
 Everything is drawn as solid blocks snapped to a coarse pixel grid (CELL per sprite
-pixel), so it reads as a chunky retro sprite rather than smooth vector art. Two strum
-frames are animated by moving the picking paw.
+pixel), so it reads as a chunky retro sprite rather than smooth vector art. When the
+cat is "replying" it strums and colorful musical notes drift up.
 """
 
 from __future__ import annotations
@@ -20,10 +20,12 @@ _D = theme.BROWN              # outline / shading
 _W = theme.WHITE
 _K = theme.BLACK
 _P = theme.MAGENTA           # nose / inner ear
-_G = (150, 96, 40)           # guitar wood
-_N = (198, 158, 108)         # neck
-_S = (220, 220, 220)         # strings
-_A = theme.ACCENT_ALT        # music notes
+_G = (172, 116, 60)          # guitar top (wood)
+_GD = (104, 64, 30)          # guitar binding / shadow
+_N = (208, 170, 120)         # neck / fretboard
+_PEG = (228, 228, 228)       # tuning pegs
+
+_NOTE_COLORS = [theme.RED, theme.YELLOW, theme.GREEN, theme.ACCENT_ALT, theme.MAGENTA, theme.ORANGE]
 
 # Static blocks: (col, row, w, h, color). Drawn back-to-front.
 _SPRITE = [
@@ -42,15 +44,22 @@ _SPRITE = [
     (8, 14, 5, 5, _W),                                   # belly
     # tail
     (3, 16, 2, 2, _O), (2, 17, 1, 2, _O),
-    # guitar neck (stepped up-left) + headstock
+
+    # --- guitar: fretboard up-left, headstock with pegs ---
     (12, 15, 2, 1, _N), (11, 14, 2, 1, _N), (10, 13, 2, 1, _N), (9, 12, 2, 1, _N),
     (8, 11, 2, 1, _N), (7, 10, 2, 1, _N), (6, 9, 2, 1, _N), (5, 8, 2, 1, _N),
-    (4, 7, 2, 2, _D),
-    (9, 12, 1, 1, _D), (7, 10, 1, 1, _D),                # fret marks on the neck
-    # guitar body (blocky oval) + soundhole + bridge
-    (15, 14, 5, 1, _G), (14, 15, 7, 1, _G), (13, 16, 9, 4, _G),
-    (14, 20, 7, 1, _G), (15, 21, 5, 1, _G),
-    (16, 17, 2, 2, _K), (15, 19, 4, 1, _D),
+    (9, 12, 1, 1, _GD), (7, 10, 1, 1, _GD),              # frets
+    (3, 6, 3, 3, _GD),                                   # headstock
+    (3, 6, 1, 1, _PEG), (5, 6, 1, 1, _PEG), (3, 8, 1, 1, _PEG),  # tuning pegs
+
+    # --- guitar: figure-8 body (upper bout / waist / lower bout) ---
+    (15, 14, 4, 1, _G), (14, 15, 6, 1, _G),              # upper bout
+    (15, 16, 4, 1, _G),                                  # waist
+    (13, 17, 8, 3, _G), (14, 20, 6, 1, _G), (15, 21, 4, 1, _G),  # lower bout
+    (20, 17, 1, 4, _GD), (14, 21, 7, 1, _GD),            # binding/shadow
+    (16, 17, 2, 2, _K),                                  # soundhole
+    (14, 19, 5, 1, _GD),                                 # bridge
+
     # fretting paw on the neck
     (4, 9, 2, 2, _O),
 ]
@@ -61,8 +70,8 @@ class Cat:
         self.t = 0.0
         self.state = "idle"
         self._blink = 0.0
-        self._notes: list[float] = []
-        self._note_acc = 0.0
+        self._notes: list[list] = []   # [age, color_index, drift]
+        self._spawn = 0.0
 
     def set_state(self, state: str) -> None:
         if state != self.state:
@@ -73,14 +82,16 @@ class Cat:
     def update(self, dt: float) -> None:
         self.t += dt
         self._blink = (self._blink + dt) % 4.0
-        rate = 4.0 if self.state == "replying" else (1.4 if self.state == "idle" else 0.0)
-        if rate:
-            self._note_acc += dt * (rate if self.state == "replying" else 0.0)
-            while self._note_acc >= 1.0:
-                self._note_acc -= 1.0
-                self._notes.append(0.0)
-        self._notes = [a + dt for a in self._notes]
-        self._notes = [a for a in self._notes if a < 1.4]
+        if self.state == "replying":
+            self._spawn += dt
+            while self._spawn >= 0.28:
+                self._spawn -= 0.28
+                idx = len(self._notes) % len(_NOTE_COLORS)
+                drift = 1 if len(self._notes) % 2 else -1
+                self._notes.append([0.0, idx, drift])
+        for n in self._notes:
+            n[0] += dt
+        self._notes = [n for n in self._notes if n[0] < 1.6]
 
     # --- drawing ----------------------------------------------------------
 
@@ -94,16 +105,16 @@ class Cat:
         for c, r, w, h, color in _SPRITE:
             px(c, r, w, h, color)
 
-        # Blink: drop a skin-colored bar over the eyes briefly each cycle.
+        # Blink.
         if self._blink > 3.8:
             px(8, 5, 2, 2, _O)
             px(14, 5, 2, 2, _O)
 
-        # Strumming paw on the guitar body (small bob), consistent in every state.
-        period = 0.25 if self.state == "replying" else 0.55
+        # Strumming paw over the soundhole (bobs while idle/replying).
+        period = 0.22 if self.state == "replying" else 0.55
         moving = self.state in ("idle", "replying")
         down = moving and (int(self.t / period) % 2 == 0)
-        px(14, 18 if down else 17, 2, 2, _O)
+        px(17, 18 if down else 16, 2, 2, _O)
 
         # Thinking dots above the head.
         if self.state == "thinking":
@@ -111,10 +122,15 @@ class Cat:
             for i in range(3):
                 px(19 + i, 2, 1, 1, _W if i < n else _D)
 
-        # Rising music notes when replying.
-        for age in self._notes:
-            r = 14 - int(age * 9)
-            c = 20 + (1 if int(age * 6) % 2 else 0)
-            color = _A if age < 1.0 else _D
-            px(c, r, 1, 1, color)
-            px(c + 1, r - 1, 1, 1, color)
+        # Colorful musical notes drifting up while answering.
+        for age, idx, drift in self._notes:
+            color = _NOTE_COLORS[idx]
+            c = 18 + drift + int(drift * age * 3)
+            r = 15 - int(age * 11)
+            self._note_glyph(px, c, r, color)
+
+    @staticmethod
+    def _note_glyph(px, c, r, color) -> None:
+        px(c, r, 2, 2, color)          # note head
+        px(c + 2, r - 3, 1, 4, color)  # stem
+        px(c + 2, r - 3, 2, 1, color)  # flag
