@@ -182,13 +182,10 @@ def test_assistant():
     s = app.current
     s.client.cfg = {"host": "x", "client_id": "x", "client_secret": "x", "endpoint": "x", "mode": "fm"}
     s.client.ask = lambda text, context=None: {"reply": "Loading it now!", "actions": [{"type": "set_tempo", "bpm": 140}]}
-    s.voice.listen = lambda secs=4.0: "set tempo to 140"
-    s.voice._ensure_model = lambda: True
-    import tabby.assistant.stt as stt
-    stt._sd = object()
-    assert s.voice.ready and s.client.configured
+    assert s.client.configured
 
-    s._on_talk()
+    # Simulate a finished transcript -> agent -> reply + action.
+    s._on_transcript("set tempo to 140")
     for _ in range(60):
         s.update(0.02)
         if s.state == "replying":
@@ -198,7 +195,7 @@ def test_assistant():
     assert s.reply == "Loading it now!"
     assert int(app.config.get("tempo")) == 140, "agent action did not run"
     app._shutdown()
-    print("  assistant: dispatch + voice->agent->reply->action OK")
+    print("  assistant: dispatch + transcript->agent->reply->action OK")
 
 
 if __name__ == "__main__":

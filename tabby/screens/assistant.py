@@ -7,6 +7,9 @@ No keyboard: all AI features live here.
 from __future__ import annotations
 
 import threading
+import time
+
+import pygame
 
 from .. import theme
 from ..app import Screen, TOPBAR_H
@@ -49,12 +52,29 @@ class AssistantScreen(Screen):
         self._busy = False
         self._async = None             # ("ok", value) | ("err", msg)
         self._after = None
+        self._press_t = None           # when the talk button went down
+        self._tap_mode = False         # tapped (vs held): auto-stop on silence
 
-        self.talk_btn = Button((100, 208, 200, 28), "TAP TO TALK", self._on_talk,
-                               color=theme.PURPLE, text_color=theme.WHITE, font_size=12)
+        self.talk_btn = Button((100, 208, 200, 28), "HOLD OR TAP TO TALK", self._noop,
+                               color=theme.PURPLE, text_color=theme.WHITE, font_size=10)
         self.reply_box = (12, 150, theme.INTERNAL_W - 24, 52)
 
+    def on_enter(self) -> None:
+        # Warm up the whisper model in the background so the first tap is instant.
+        threading.Thread(target=self._prewarm, daemon=True).start()
+
+    def _prewarm(self) -> None:
+        try:
+            self.voice._ensure_model()
+        except Exception:  # noqa: BLE001
+            pass
+
     def on_exit(self) -> None:
+        if self.voice.recording:
+            self.voice.stop_recording()
+
+    @staticmethod
+    def _noop() -> None:
         pass
 
     # --- async helper -----------------------------------------------------
@@ -91,22 +111,42 @@ class AssistantScreen(Screen):
 
     # --- voice flow -------------------------------------------------------
 
-    def _on_talk(self) -> None:
-        if self._busy or self.state in ("listening", "thinking"):
+    _HOLD = 0.45        # press longer than this = hold-to-talk
+    _SILENCE = 2.0      # tap-to-talk auto-stops after this much trailing silence
+    _MAX_REC = 15.0     # hard cap on a single utterance
+
+    def _begin_listen(self) -> None:
+        if self._busy or self.state in ("listening", "thinking") or self.voice.recording:
             return
         if not self.client.configured:
             self.state = "error"
             self.status = "ASSISTANT NOT SET UP (SEE CONFIG)"
             return
-        if not self.voice.ready:
+        if not self.voice.has_audio:
             self.state = "error"
-            self.status = "VOICE NOT SET UP (INSTALL WHISPER)"
+            self.status = "NO MICROPHONE"
+            return
+        try:
+            self.voice.start_recording()
+        except Exception as exc:  # noqa: BLE001
+            self._fail(str(exc))
             return
         self.transcript = ""
         self.reply = ""
+        self._press_t = time.monotonic()
+        self._tap_mode = False
         self.state = "listening"
         self.status = "LISTENING..."
-        self._run_async(lambda: self.voice.listen(4.0), self._on_transcript)
+
+    def _end_listen(self) -> None:
+        audio = self.voice.stop_recording()
+        if len(audio) < 16000 * 0.3:        # < 0.3s -> ignore stray tap
+            self.state = "idle"
+            self.status = ""
+            return
+        self.state = "thinking"
+        self.status = "THINKING..."
+        self._run_async(lambda: self.voice.transcribe(audio), self._on_transcript)
 
     def _on_transcript(self, text: str) -> None:
         text = (text or "").strip()
@@ -131,12 +171,19 @@ class AssistantScreen(Screen):
 
     def update(self, dt: float) -> None:
         self._pump()
+        # Auto-stop a tapped recording after trailing silence (or the hard cap).
+        if self.state == "listening" and self.voice.recording:
+            if self._tap_mode and (self.voice.silence_elapsed() >= self._SILENCE
+                                   or self.voice.record_elapsed() >= self._MAX_REC):
+                self._end_listen()
+            elif not self._tap_mode and self.voice.record_elapsed() >= self._MAX_REC:
+                self._end_listen()
         self.cat.set_state(self.state if self.state in ("idle", "listening", "thinking", "replying") else "idle")
         self.cat.update(dt)
         self.talk_btn.text = {
-            "idle": "TAP TO TALK", "listening": "LISTENING...",
-            "thinking": "THINKING...", "replying": "TAP TO TALK", "error": "TAP TO TALK",
-        }.get(self.state, "TAP TO TALK")
+            "idle": "HOLD OR TAP TO TALK", "listening": "LISTENING...",
+            "thinking": "THINKING...", "replying": "HOLD OR TAP TO TALK", "error": "HOLD OR TAP TO TALK",
+        }.get(self.state, "HOLD OR TAP TO TALK")
         if self.state == "replying":
             self._reply_t += dt
             if self._reply_t > _REPLY_HOLD:
@@ -145,7 +192,15 @@ class AssistantScreen(Screen):
     def handle_event(self, event, pos) -> None:
         if pos is None:
             return
-        self.talk_btn.handle_event(event, pos)
+        rect = self.talk_btn.rect
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and rect.collidepoint(pos):
+            self._begin_listen()
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1 and self.state == "listening" and self.voice.recording:
+            held = self._press_t is not None and (time.monotonic() - self._press_t) >= self._HOLD
+            if held:
+                self._end_listen()       # hold-to-talk: release ends it
+            else:
+                self._tap_mode = True    # tap-to-talk: keep recording until silence
 
     # --- draw -------------------------------------------------------------
 
@@ -164,7 +219,7 @@ class AssistantScreen(Screen):
             color = theme.BAD if self.state == "error" else theme.TEXT_DIM
             draw_text(surface, self.status, 8, color, center=(theme.INTERNAL_W // 2, 168))
         elif self.state == "idle":
-            draw_text(surface, "ASK ME TO TUNE, SET TEMPO, OR LOAD A SONG", 8, theme.TEXT_DIM,
+            draw_text(surface, "ASK ME TO TUNE, LOAD A SONG, OR WHAT'S PLAYING", 8, theme.TEXT_DIM,
                       center=(theme.INTERNAL_W // 2, 168))
 
         self.talk_btn.draw(surface)
