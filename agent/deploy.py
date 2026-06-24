@@ -41,8 +41,7 @@ def main() -> None:
         )
 
     print(f"Deploying endpoint '{ENDPOINT}' from {UC_MODEL} v{logged.registered_model_version} ...")
-    agents.deploy(UC_MODEL, logged.registered_model_version, endpoint_name=ENDPOINT,
-                  scale_to_zero=True)
+    agents.deploy(UC_MODEL, logged.registered_model_version, endpoint_name=ENDPOINT)
     print("Deploy requested. Watch the endpoint come up in the Databricks UI (Serving).")
 
 

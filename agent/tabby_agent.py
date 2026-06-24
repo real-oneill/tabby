@@ -12,10 +12,9 @@ import json
 import re
 from typing import Any, Generator
 
-import mlflow
 from databricks.sdk import WorkspaceClient
 from mlflow.pyfunc import ChatAgent
-from mlflow.types.agent import ChatAgentChunk, ChatAgentMessage, ChatAgentResponse
+from mlflow.types.agent import ChatAgentMessage, ChatAgentResponse
 
 # Foundation model that powers the agent (override via the LLM_ENDPOINT param at deploy).
 LLM_ENDPOINT = "databricks-meta-llama-3-3-70b-instruct"
@@ -64,11 +63,13 @@ def _extract_json(text: str) -> dict[str, Any]:
 class TabbyAgent(ChatAgent):
     def __init__(self, llm_endpoint: str = LLM_ENDPOINT) -> None:
         self.llm_endpoint = llm_endpoint
-        self._client = WorkspaceClient().serving_endpoints
+        self._client = None
 
     def _chat(self, messages: list[dict]) -> str:
         from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
 
+        if self._client is None:  # lazy so module import (at log time) needs no auth
+            self._client = WorkspaceClient().serving_endpoints
         sdk_messages = [ChatMessage(role=ChatMessageRole(m["role"]), content=m["content"]) for m in messages]
         resp = self._client.query(name=self.llm_endpoint, messages=sdk_messages,
                                   temperature=0.1, max_tokens=400)
