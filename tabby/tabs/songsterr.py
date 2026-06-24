@@ -133,16 +133,42 @@ def default_track_index(song_id: int) -> int:
     return 0
 
 
+def _load_part(song_id: int, rev: int, image: str, index: int) -> dict:
+    url = f"{_CDN}/{song_id}/{rev}/{image}/{index}.json"
+    return json.loads(_cached(f"part_{song_id}_{rev}_{index}.json", url))
+
+
 def load_song(song_id: int, track_index: int) -> TimedSong:
     """Fetch one track's notes and build a single-track timed song."""
     m = meta(song_id)
-    rev = m["revisionId"]
-    image = m["image"]
-    url = f"{_CDN}/{song_id}/{rev}/{image}/{track_index}.json"
-    part = json.loads(_cached(f"part_{song_id}_{rev}_{track_index}.json", url))
-    track = _map_part(part)
+    part = _load_part(song_id, m["revisionId"], m["image"], track_index)
     return TimedSong(title=m.get("title", "?"), artist=m.get("artist", ""),
-                    tempo=_base_tempo(part), tracks=[track])
+                    tempo=_base_tempo(part), tracks=[_map_part(part)])
+
+
+def load_full_song(song_id: int) -> TimedSong:
+    """Fetch all playable instrument tracks so the player can cycle through them.
+
+    Skips empty and vocal tracks; opens on the song's popular guitar track.
+    """
+    m = meta(song_id)
+    rev, image = m["revisionId"], m["image"]
+    infos = m.get("tracks", [])
+    included = [i for i, t in enumerate(infos) if not t.get("isEmpty") and not t.get("isVocalTrack")]
+    if not included:
+        included = [i for i, t in enumerate(infos) if not t.get("isEmpty")] or list(range(len(infos)))
+
+    popular = m.get("popularTrackGuitar")
+    tracks, tempo, default_track = [], 120.0, 0
+    for pos, idx in enumerate(included):
+        part = _load_part(song_id, rev, image, idx)
+        tracks.append(_map_part(part))
+        if pos == 0:
+            tempo = _base_tempo(part)
+        if idx == popular:
+            default_track = pos
+    return TimedSong(title=m.get("title", "?"), artist=m.get("artist", ""),
+                    tempo=tempo, tracks=tracks, default_track=default_track)
 
 
 # --- mapping --------------------------------------------------------------
@@ -169,8 +195,10 @@ def _map_part(part: dict) -> TimedTrack:
             if beat.get("rest") or all(n.get("rest") for n in raw_notes):
                 notes: list[TimedNote] = []
             else:
+                # Skip rests and tie/dead notes that carry no playable fret.
                 notes = [TimedNote(string=n["string"], fret=n["fret"])
-                         for n in raw_notes if not n.get("rest") and "string" in n]
+                         for n in raw_notes
+                         if not n.get("rest") and "string" in n and "fret" in n]
             beats.append(TimedBeat(start=pos, duration=qn, notes=notes))
             pos += qn
     name = part.get("name") or part.get("instrument") or "TRACK"

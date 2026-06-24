@@ -91,19 +91,22 @@ def test_tab_player():
 
 
 def test_songsterr_flow():
+    import os
+    import tempfile
     import time
     from tabby.tabs import songsterr as ss
+    from tabby.tabs.library import TabLibrary
     from tabby.tabs.model import TimedBeat, TimedNote, TimedSong, TimedTrack
 
     # Mock the network so the test is offline + deterministic.
     ss.search = lambda q, size=24: [ss.SongResult(1, "Metallica", "One", True)]
-    ss.tracks = lambda sid: [ss.TrackInfo(0, "Distortion Guitar", "Lead", False, False),
-                             ss.TrackInfo(1, "Voice", "Vocals", True, False)]
 
-    def fake_load(sid, idx):
-        beats = [TimedBeat(start=float(i), duration=1.0, notes=[TimedNote(1, i % 6)]) for i in range(8)]
-        return TimedSong("One", "Metallica", 120.0, [TimedTrack("Lead", [64, 59, 55, 50, 45, 40], beats)])
-    ss.load_song = fake_load
+    def fake_full(sid):
+        def track(name, base):
+            beats = [TimedBeat(float(i), 1.0, [TimedNote(1, (i + base) % 6)]) for i in range(8)]
+            return TimedTrack(name, [64, 59, 55, 50, 45, 40], beats)
+        return TimedSong("One", "Metallica", 120.0, [track("Lead", 0), track("Bass", 2)], default_track=1)
+    ss.load_full_song = fake_full
 
     def wait(screen, timeout=3.0):
         t0 = time.time()
@@ -112,7 +115,9 @@ def test_songsterr_flow():
             time.sleep(0.005)
         screen.update(0.01)
 
+    tmp = tempfile.mkdtemp()
     app = App(fullscreen=False, scale=2)
+    app.config._data["tabs_dir"] = tmp        # save retrieved tabs here, not the real folder
     app.navigate("tabs")
     screen = app.current
 
@@ -123,20 +128,27 @@ def test_songsterr_flow():
     wait(screen)
     assert screen.mode == "results" and screen.results, "search produced no results"
 
-    screen._pick_song(screen.results[0])()   # -> async tracks
-    wait(screen)
-    assert screen.mode == "tracks" and screen.track_infos
-
-    screen._pick_track(screen.track_infos[0])()   # -> async load_song
+    screen._pick_song(screen.results[0])()   # -> async load_full_song (+ auto-save)
     wait(screen)
     assert screen.mode == "play" and screen.kind == "synced" and screen.player is not None
     p = screen.player
+    assert len(p.song.tracks) == 2, "expected multi-track load"
+    assert p.track_index == 1, "should open on default_track"
+    p.cycle_track()
+    assert p.track_index == 0, "TRK should cycle tracks"
     p.playing = True
     for _ in range(20):
         screen.update(0.05)
     assert p.pos > 0, "synced Songsterr playback did not advance"
+
+    # Auto-saved .tabby is reloadable and preserves multi-track + default.
+    saved = TabLibrary(tmp).entries()
+    tabby = [e for e in saved if e.kind == "tabby"]
+    assert tabby, "retrieved tab was not saved to the tabs folder"
+    reloaded = TabLibrary.load_tabby(tabby[0].path)
+    assert len(reloaded.tracks) == 2 and reloaded.default_track == 1, "saved tab lost data"
     app._shutdown()
-    print("  songsterr flow: search -> results -> track -> synced play OK")
+    print("  songsterr flow: search -> full load -> multi-track play + auto-save/reload OK")
 
 
 if __name__ == "__main__":

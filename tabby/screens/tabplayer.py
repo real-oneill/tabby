@@ -137,11 +137,12 @@ class TabPlayerScreen(Screen):
         ]
         y = TOPBAR_H + 8 + 28
         start = self.page * 6
+        tags = {"gp": "GP", "tabby": "SS", "text": "TXT"}
+        colors = {"gp": theme.ACCENT, "tabby": theme.GOOD, "text": theme.TEXT}
         for entry in self.entries[start : start + 6]:
-            color = theme.ACCENT if entry.kind == "gp" else theme.TEXT
-            label = f"{_truncate(entry.name, 32)}  [{'GP' if entry.kind == 'gp' else 'TXT'}]"
+            label = f"{_truncate(entry.name, 32)}  [{tags.get(entry.kind, 'TXT')}]"
             self.nav_buttons.append(Button((12, y, _W - 24, 22), label, self._open_local(entry),
-                                          color=theme.PANEL, text_color=color, font_size=8))
+                                          color=theme.PANEL, text_color=colors.get(entry.kind, theme.TEXT), font_size=8))
             y += 26
         self._add_pager(len(self.entries), 6, self.page, self._turn_browse)
 
@@ -155,6 +156,8 @@ class TabPlayerScreen(Screen):
             self.app.config.set("last_tab", entry.path)
             if entry.kind == "gp":
                 self._start_synced(self.library.load_gp(entry.path))
+            elif entry.kind == "tabby":
+                self._start_synced(self.library.load_tabby(entry.path))
             else:
                 self.tab = self.library.load_text(entry.path)
                 self.scroller = TextScroller(len(self.tab.lines), speed=float(self.app.config.get("scroll_speed")))
@@ -202,34 +205,18 @@ class TabPlayerScreen(Screen):
     def _pick_song(self, result):
         def go() -> None:
             self.cur_song = result
-            self._run_async("LOADING TRACKS", lambda: songsterr.tracks(result.song_id), self._on_tracks)
+            self._run_async("LOADING TAB", lambda: songsterr.load_full_song(result.song_id),
+                            self._on_song_loaded)
         return go
 
-    def _on_tracks(self, infos) -> None:
-        # Hide empty tracks; keep playable instrument + vocal tracks.
-        self.track_infos = [t for t in infos if not t.is_empty]
-        self.mode = "tracks"
-        self.title = "PICK TRACK"
-        self._build_tracks()
-
-    def _build_tracks(self) -> None:
-        self.nav_buttons = []
-        y = TOPBAR_H + 8
-        for t in self.track_infos[:_PER_PAGE]:
-            label = _truncate(f"{t.instrument}: {t.name}".upper(), 42)
-            color = theme.TEXT_DIM if t.is_vocal else theme.TEXT
-            self.nav_buttons.append(Button((12, y, _W - 24, 22), label, self._pick_track(t),
-                                          color=theme.PANEL, text_color=color, font_size=8))
-            y += 26
-
-    def _pick_track(self, info):
-        def go() -> None:
-            sid = self.cur_song.song_id
-            self._run_async("LOADING TAB", lambda: songsterr.load_song(sid, info.index), self._start_synced)
-        return go
+    def _on_song_loaded(self, song) -> None:
+        # Persist to the tabs folder so it's available offline next time.
+        from ..tabs import tabbyfmt
+        tabbyfmt.save(song, self.app.config.get("tabs_dir"))
+        self._start_synced(song)
 
     def _start_synced(self, song) -> None:
-        self.player = SyncedPlayer(song, rate=1.0)
+        self.player = SyncedPlayer(song, track_index=getattr(song, "default_track", 0), rate=1.0)
         self.kind = "synced"
         self.title = _truncate(song.display_name.upper(), 18)
         self.mode = "play"
@@ -348,8 +335,6 @@ class TabPlayerScreen(Screen):
             pass
         for btn in self.nav_buttons:
             btn.draw(surface)
-        if self.mode == "tracks":
-            draw_text(surface, "CHOOSE A PART TO PLAY", 8, theme.TEXT_DIM, center=(_W // 2, 214))
 
     def _draw_play(self, surface) -> None:
         if self.kind == "synced":

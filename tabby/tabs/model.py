@@ -51,6 +51,7 @@ class TimedSong:
     artist: str
     tempo: float             # base BPM (quarter notes per minute)
     tracks: list[TimedTrack] = field(default_factory=list)
+    default_track: int = 0   # which track the player should open on
 
     @property
     def display_name(self) -> str:

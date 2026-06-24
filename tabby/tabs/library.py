@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from . import gp_loader
+from . import gp_loader, tabbyfmt
 from .sources import local_text
 
 # Bundled sample tabs shipped with the app (repo: assets/tabs).
@@ -15,7 +15,7 @@ _BUNDLED_DIR = os.path.join(
     "tabs",
 )
 
-_EXTENSIONS = (".txt",) + gp_loader.GP_EXTENSIONS
+_EXTENSIONS = (".txt", tabbyfmt.EXTENSION) + gp_loader.GP_EXTENSIONS
 
 
 @dataclass
@@ -40,8 +40,7 @@ class TabLibrary:
         for path in local_text.list_files(self._dirs(), _EXTENSIONS):
             stem = os.path.splitext(os.path.basename(path))[0]
             name = stem if " - " in stem else stem.replace("_", " ").replace("-", " ").strip()
-            kind = "gp" if gp_loader.is_gp_file(path) else "text"
-            out.append(TabEntry(path=path, name=name.upper(), kind=kind))
+            out.append(TabEntry(path=path, name=name.upper(), kind=_kind(path)))
         return out
 
     @staticmethod
@@ -51,3 +50,15 @@ class TabLibrary:
     @staticmethod
     def load_gp(path: str):
         return gp_loader.load(path)
+
+    @staticmethod
+    def load_tabby(path: str):
+        return tabbyfmt.load(path)
+
+
+def _kind(path: str) -> str:
+    if gp_loader.is_gp_file(path):
+        return "gp"
+    if path.lower().endswith(tabbyfmt.EXTENSION):
+        return "tabby"
+    return "text"
