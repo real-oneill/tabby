@@ -91,6 +91,12 @@ def main():
         ss.SongResult(393819, "Metallica", "Master of Puppets (Acoustic)", True),
     ])
     save(app, "tabs_results")
+    # Delete mode + confirmation modal.
+    tabs._to_browse()
+    tabs.delete_mode = True
+    tabs._build_browse()
+    tabs.pending_delete = tabs.entries[0]
+    save(app, "tabs_delete")
     app.go_back()
 
     app._shutdown()

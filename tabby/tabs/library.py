@@ -22,7 +22,8 @@ _EXTENSIONS = (".txt", tabbyfmt.EXTENSION) + gp_loader.GP_EXTENSIONS
 class TabEntry:
     path: str
     name: str
-    kind: str  # "text" | "gp"
+    kind: str  # "text" | "gp" | "tabby"
+    deletable: bool  # True only for files in the user's tabs dir (not bundled samples)
 
 
 class TabLibrary:
@@ -40,8 +41,19 @@ class TabLibrary:
         for path in local_text.list_files(self._dirs(), _EXTENSIONS):
             stem = os.path.splitext(os.path.basename(path))[0]
             name = stem if " - " in stem else stem.replace("_", " ").replace("-", " ").strip()
-            out.append(TabEntry(path=path, name=name.upper(), kind=_kind(path)))
+            deletable = os.path.dirname(path) == self.tabs_dir
+            out.append(TabEntry(path=path, name=name.upper(), kind=_kind(path), deletable=deletable))
         return out
+
+    def delete(self, path: str) -> bool:
+        """Delete a tab file, but only if it lives in the user's tabs dir."""
+        if os.path.dirname(path) != self.tabs_dir:
+            return False
+        try:
+            os.remove(path)
+            return True
+        except OSError:
+            return False
 
     @staticmethod
     def load_text(path: str):

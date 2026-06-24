@@ -71,7 +71,7 @@ class App:
         }
         self.stack: list[Screen] = []
         self._back_btn = Button(
-            (2, 2, 40, TOPBAR_H - 4), "BACK", self.go_back,
+            (2, 2, 40, TOPBAR_H - 4), "HOME", self.go_back,
             color=theme.SHADOW, text_color=theme.WHITE, font_size=8,
         )
         self.navigate("home")

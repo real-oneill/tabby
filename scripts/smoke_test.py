@@ -147,8 +147,21 @@ def test_songsterr_flow():
     assert tabby, "retrieved tab was not saved to the tabs folder"
     reloaded = TabLibrary.load_tabby(tabby[0].path)
     assert len(reloaded.tracks) == 2 and reloaded.default_track == 1, "saved tab lost data"
+
+    # Delete-from-list: the saved tab is deletable; bundled samples are not.
+    screen._to_browse()
+    screen.on_enter()               # rescan entries from the (tmp) tabs dir + bundled
+    saved_entry = next(e for e in screen.entries if e.kind == "tabby")
+    bundled = next(e for e in screen.entries if not e.deletable)
+    assert saved_entry.deletable and not bundled.deletable
+    screen.delete_mode = True
+    screen._ask_delete(saved_entry)()
+    assert screen.pending_delete is saved_entry
+    screen._do_delete()
+    assert not os.path.exists(saved_entry.path), "tab file was not deleted"
+    assert all(e.path != saved_entry.path for e in screen.entries), "deleted tab still listed"
     app._shutdown()
-    print("  songsterr flow: search -> full load -> multi-track play + auto-save/reload OK")
+    print("  songsterr flow: search -> full load -> multi-track play + auto-save/reload + delete OK")
 
 
 if __name__ == "__main__":

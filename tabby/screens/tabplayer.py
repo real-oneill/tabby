@@ -81,6 +81,18 @@ class TabPlayerScreen(Screen):
 
         self.nav_buttons: list[Button] = []   # current mode's list/nav buttons
 
+        # Delete-from-list state + confirm modal.
+        self.delete_mode = False
+        self.pending_delete = None
+        modal = pygame.Rect(0, 0, 260, 92)
+        modal.center = (_W // 2, theme.INTERNAL_H // 2)
+        self.modal_rect = modal
+        by = modal.bottom - 32
+        self.confirm_buttons = [
+            Button((modal.left + 20, by, 100, 24), "CANCEL", self._cancel_delete, color=theme.SHADOW, text_color=theme.WHITE, font_size=10),
+            Button((modal.right - 120, by, 100, 24), "DELETE", self._do_delete, color=theme.BAD, text_color=theme.WHITE, font_size=10),
+        ]
+
     # --- Lifecycle --------------------------------------------------------
 
     def on_enter(self) -> None:
@@ -128,12 +140,17 @@ class TabPlayerScreen(Screen):
             self.app.config.set("scroll_speed", self.scroller.speed)
         self.mode = "browse"
         self.title = "TABS"
+        self.delete_mode = False
+        self.pending_delete = None
         self._build_browse()
 
     def _build_browse(self) -> None:
         self.nav_buttons = [
-            Button((12, TOPBAR_H + 8, _W - 24, 22), "* SEARCH SONGSTERR *", self._to_search,
+            Button((12, TOPBAR_H + 8, _W - 94, 22), "* SEARCH SONGSTERR *", self._to_search,
                    color=theme.PURPLE, text_color=theme.WHITE, font_size=8),
+            Button((_W - 78, TOPBAR_H + 8, 66, 22), "DONE" if self.delete_mode else "DELETE",
+                   self._toggle_delete, color=theme.BAD if self.delete_mode else theme.SHADOW,
+                   text_color=theme.WHITE, font_size=8),
         ]
         y = TOPBAR_H + 8 + 28
         start = self.page * 6
@@ -141,10 +158,47 @@ class TabPlayerScreen(Screen):
         colors = {"gp": theme.ACCENT, "tabby": theme.GOOD, "text": theme.TEXT}
         for entry in self.entries[start : start + 6]:
             label = f"{_truncate(entry.name, 32)}  [{tags.get(entry.kind, 'TXT')}]"
-            self.nav_buttons.append(Button((12, y, _W - 24, 22), label, self._open_local(entry),
-                                          color=theme.PANEL, text_color=colors.get(entry.kind, theme.TEXT), font_size=8))
+            if self.delete_mode:
+                callback = self._ask_delete(entry)
+                tcolor = theme.BAD if entry.deletable else theme.SHADOW
+            else:
+                callback = self._open_local(entry)
+                tcolor = colors.get(entry.kind, theme.TEXT)
+            self.nav_buttons.append(Button((12, y, _W - 24, 22), label, callback,
+                                          color=theme.PANEL, text_color=tcolor, font_size=8))
             y += 26
         self._add_pager(len(self.entries), 6, self.page, self._turn_browse)
+
+    # --- Delete from list -------------------------------------------------
+
+    def _toggle_delete(self) -> None:
+        self.delete_mode = not self.delete_mode
+        self.error = ""
+        self._build_browse()
+
+    def _ask_delete(self, entry):
+        def go() -> None:
+            if entry.deletable:
+                self.pending_delete = entry
+            else:
+                self.error = "BUNDLED SAMPLE - CANNOT DELETE"
+        return go
+
+    def _cancel_delete(self) -> None:
+        self.pending_delete = None
+
+    def _do_delete(self) -> None:
+        entry = self.pending_delete
+        self.pending_delete = None
+        if entry and self.library.delete(entry.path):
+            if self.app.config.get("last_tab") == entry.path:
+                self.app.config.set("last_tab", None)
+            self.entries = self.library.entries()
+            pages = max(1, (len(self.entries) + 5) // 6)
+            self.page = min(self.page, pages - 1)
+        else:
+            self.error = "DELETE FAILED"
+        self._build_browse()
 
     def _turn_browse(self, delta: int) -> None:
         pages = max(1, (len(self.entries) + 5) // 6)
@@ -278,7 +332,13 @@ class TabPlayerScreen(Screen):
                     return
             self._handle_drag(event, pos)
             return
-        # browse / results / tracks: list + nav buttons
+        # Delete confirmation takes over input while open.
+        if self.pending_delete is not None:
+            for btn in self.confirm_buttons:
+                if btn.handle_event(event, pos):
+                    return
+            return
+        # browse / results: list + nav buttons
         for btn in self.nav_buttons:
             if btn.handle_event(event, pos):
                 return
@@ -331,9 +391,21 @@ class TabPlayerScreen(Screen):
             self._draw_loading(surface)
 
     def _draw_list(self, surface) -> None:
-        if self.mode == "browse" and not self.entries and not self.nav_buttons:
-            pass
         for btn in self.nav_buttons:
+            btn.draw(surface)
+        if self.mode == "browse" and self.delete_mode and self.pending_delete is None:
+            draw_text(surface, "TAP A TAB TO DELETE", 8, theme.BAD, center=(_W // 2, 210))
+        if self.pending_delete is not None:
+            self._draw_delete_modal(surface)
+
+    def _draw_delete_modal(self, surface) -> None:
+        from ..ui.widgets import draw_panel
+        draw_panel(surface, self.modal_rect, fill=theme.PANEL, border=theme.BAD, width=2)
+        cx = self.modal_rect.centerx
+        draw_text(surface, "DELETE THIS TAB?", 10, theme.TEXT, center=(cx, self.modal_rect.top + 20))
+        draw_text(surface, _truncate(self.pending_delete.name, 30), 8, theme.TEXT_DIM,
+                  center=(cx, self.modal_rect.top + 40))
+        for btn in self.confirm_buttons:
             btn.draw(surface)
 
     def _draw_play(self, surface) -> None:
