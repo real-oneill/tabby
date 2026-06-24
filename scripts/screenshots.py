@@ -53,6 +53,16 @@ def main():
     save(app, "settings")
     app.go_back()
 
+    app.navigate("assistant")
+    asst = app.current
+    asst.state = "replying"
+    asst.transcript = "give me a warmup tip"
+    asst.reply = "Try a chromatic warmup: one finger per fret, slow and even."
+    for _ in range(6):
+        asst.cat.update(0.05)
+    save(app, "assistant")
+    app.go_back()
+
     app.navigate("tabs")
     tabs = app.current
     save(app, "tabs_browse")

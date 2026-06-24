@@ -164,9 +164,47 @@ def test_songsterr_flow():
     print("  songsterr flow: search -> full load -> multi-track play + auto-save/reload + delete OK")
 
 
+def test_assistant():
+    import time
+    app = App(fullscreen=False, scale=2)
+
+    # Action dispatch maps onto the app.
+    from tabby.assistant import dispatch
+    dispatch.run_actions(app, [{"type": "set_tempo", "bpm": 95}])
+    assert int(app.config.get("tempo")) == 95, "set_tempo action did not apply"
+    dispatch.run_actions(app, [{"type": "navigate", "screen": "tuner"}])
+    assert app.current.title == "TUNER", "navigate action did not switch screens"
+    while len(app.stack) > 1:
+        app.go_back()
+
+    # Voice -> agent -> reply + action, with both mocked (offline).
+    app.navigate("assistant")
+    s = app.current
+    s.client.cfg = {"host": "x", "client_id": "x", "client_secret": "x", "endpoint": "x", "mode": "fm"}
+    s.client.ask = lambda text, context=None: {"reply": "Loading it now!", "actions": [{"type": "set_tempo", "bpm": 140}]}
+    s.voice.listen = lambda secs=4.0: "set tempo to 140"
+    s.voice._ensure_model = lambda: True
+    import tabby.assistant.stt as stt
+    stt._sd = object()
+    assert s.voice.ready and s.client.configured
+
+    s._on_talk()
+    for _ in range(60):
+        s.update(0.02)
+        if s.state == "replying":
+            break
+        time.sleep(0.005)
+    assert s.state == "replying", f"assistant stuck in {s.state}"
+    assert s.reply == "Loading it now!"
+    assert int(app.config.get("tempo")) == 140, "agent action did not run"
+    app._shutdown()
+    print("  assistant: dispatch + voice->agent->reply->action OK")
+
+
 if __name__ == "__main__":
     test_pitch()
     test_screens()
     test_tab_player()
     test_songsterr_flow()
+    test_assistant()
     print("SMOKE TEST PASSED")

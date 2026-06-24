@@ -1,0 +1,4 @@
+# Deployed on Databricks (Model Serving), NOT on the Raspberry Pi.
+mlflow>=2.17
+databricks-agents>=0.16
+databricks-sdk>=0.33

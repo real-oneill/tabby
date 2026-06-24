@@ -269,6 +269,19 @@ class TabPlayerScreen(Screen):
         tabbyfmt.save(song, self.app.config.get("tabs_dir"))
         self._start_synced(song)
 
+    def start_query_load(self, query: str) -> None:
+        """Search Songsterr for `query` and load the top hit (used by the assistant)."""
+        self.error = ""
+
+        def load():
+            results = songsterr.search(query, size=5)
+            playable = [r for r in results if r.has_player] or results
+            if not playable:
+                raise RuntimeError("no results")
+            return songsterr.load_full_song(playable[0].song_id)
+
+        self._run_async("LOADING TAB", load, self._on_song_loaded)
+
     def _start_synced(self, song) -> None:
         self.player = SyncedPlayer(song, track_index=getattr(song, "default_track", 0), rate=1.0)
         self.kind = "synced"
