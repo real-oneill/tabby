@@ -134,7 +134,9 @@ def main() -> None:
         if life in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR"):
             print(f"result_state: {result}")
             print(f"message: {state.get('state_message', '')}")
-            out = _api(host, token, f"/api/2.1/jobs/runs/get-output?run_id={run_id}", method="GET")
+            # get-output wants the individual task run_id, not the parent run_id.
+            task_run_id = r.get("tasks", [{}])[0].get("run_id", run_id)
+            out = _api(host, token, f"/api/2.1/jobs/runs/get-output?run_id={task_run_id}", method="GET")
             notebook_out = (out.get("notebook_output") or {}).get("result")
             print(f"notebook_output: {notebook_out}")
             if out.get("error"):
