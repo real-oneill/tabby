@@ -12,6 +12,7 @@ import json
 import re
 from typing import Any, Generator
 
+import mlflow
 from databricks.sdk import WorkspaceClient
 from mlflow.pyfunc import ChatAgent
 from mlflow.types.agent import ChatAgentMessage, ChatAgentResponse
@@ -63,6 +64,7 @@ class TabbyAgent(ChatAgent):
         self.llm_endpoint = llm_endpoint
         self._client = None
 
+    @mlflow.trace(span_type="LLM")
     def _chat(self, messages: list[dict]) -> str:
         from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
 
@@ -73,6 +75,7 @@ class TabbyAgent(ChatAgent):
                                   temperature=0.1, max_tokens=400)
         return resp.choices[0].message.content
 
+    @mlflow.trace(span_type="AGENT")
     def predict(self, messages, context=None, custom_inputs=None) -> ChatAgentResponse:
         convo = [{"role": "system", "content": SYSTEM_PROMPT}]
         convo += [{"role": m.role, "content": m.content} for m in messages if m.content]
@@ -82,6 +85,10 @@ class TabbyAgent(ChatAgent):
         actions = parsed.get("actions", [])
         if not isinstance(actions, list):
             actions = []
+        # Surface the decision on the trace for easy debugging in the MLflow UI.
+        span = mlflow.get_current_active_span()
+        if span is not None:
+            span.set_attribute("actions", actions)
         return ChatAgentResponse(
             messages=[ChatAgentMessage(role="assistant", content=reply, id="1")],
             custom_outputs={"actions": actions},
