@@ -208,6 +208,7 @@ class AssistantScreen(Screen):
 
     def _on_identified(self, rec) -> None:
         self._reply_t = 0.0
+        self.status = ""               # clear "LISTENING FOR MUSIC..."
         if not rec:
             self.reply = "Hmm, I couldn't make out what's playing."
             self.state = "replying"
@@ -238,6 +239,8 @@ class AssistantScreen(Screen):
             if self._reply_t > _REPLY_HOLD:
                 self.state = "idle"
                 self.now_playing = None
+                self.status = ""
+                self.reply = ""
 
     def handle_event(self, event, pos) -> None:
         if pos is None:

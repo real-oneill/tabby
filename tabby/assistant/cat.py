@@ -72,6 +72,7 @@ class Cat:
         self._blink = 0.0
         self._notes: list[list] = []   # [age, color_index, drift]
         self._spawn = 0.0
+        self._note_seq = 0             # monotonic, so colors cycle evenly
 
     def set_state(self, state: str) -> None:
         if state != self.state:
@@ -86,8 +87,9 @@ class Cat:
             self._spawn += dt
             while self._spawn >= 0.28:
                 self._spawn -= 0.28
-                idx = len(self._notes) % len(_NOTE_COLORS)
-                drift = 1 if len(self._notes) % 2 else -1
+                idx = self._note_seq % len(_NOTE_COLORS)
+                drift = 1 if self._note_seq % 2 else -1
+                self._note_seq += 1
                 self._notes.append([0.0, idx, drift])
         for n in self._notes:
             n[0] += dt
@@ -116,11 +118,14 @@ class Cat:
         down = moving and (int(self.t / period) % 2 == 0)
         px(17, 18 if down else 16, 2, 2, _O)
 
-        # Thinking dots above the head.
+        # Thinking: a thought bubble rising up-right of the head, dots "..." cycling.
         if self.state == "thinking":
+            px(19, 3, 1, 1, _W)            # small connector puff
+            px(20, 1, 1, 1, _W)            # larger connector puff
+            px(21, -1, 4, 3, _W)           # bubble cloud
             n = int(self.t * 3) % 4
-            for i in range(3):
-                px(19 + i, 2, 1, 1, _W if i < n else _D)
+            for i in range(3):             # dark dots appear one by one inside it
+                px(21 + i, 0, 1, 1, _D if i < n else _W)
 
         # Colorful musical notes drifting up while answering.
         for age, idx, drift in self._notes:
