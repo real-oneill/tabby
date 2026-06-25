@@ -40,6 +40,7 @@ class Screen:
 class App:
     def __init__(self, fullscreen: bool = False, scale: int = theme.DEFAULT_SCALE) -> None:
         pygame.init()
+        theme.font.cache_clear()   # drop any fonts cached before a prior pygame.quit()
         pygame.display.set_caption("Tabby")
         self.scale = scale
         flags = pygame.FULLSCREEN | pygame.SCALED if fullscreen else 0
