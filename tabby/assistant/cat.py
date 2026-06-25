@@ -120,12 +120,14 @@ class Cat:
 
         # Thinking: a thought bubble rising up-right of the head, dots "..." cycling.
         if self.state == "thinking":
-            px(19, 3, 1, 1, _W)            # small connector puff
-            px(20, 1, 1, 1, _W)            # larger connector puff
-            px(21, -1, 4, 3, _W)           # bubble cloud
+            px(19, 5, 1, 1, _W)            # small connector puff
+            px(20, 3, 2, 2, _W)            # larger connector puff
+            px(22, -2, 5, 1, _W)           # bubble cloud (rounded)
+            px(21, -1, 7, 4, _W)
+            px(22, 3, 5, 1, _W)
             n = int(self.t * 3) % 4
             for i in range(3):             # dark dots appear one by one inside it
-                px(21 + i, 0, 1, 1, _D if i < n else _W)
+                px(22 + i * 2, 0, 1, 2, _K if i < n else _W)
 
         # Colorful musical notes drifting up while answering.
         for age, idx, drift in self._notes:
