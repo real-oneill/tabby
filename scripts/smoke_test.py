@@ -194,8 +194,31 @@ def test_assistant():
     assert s.state == "replying", f"assistant stuck in {s.state}"
     assert s.reply == "Loading it now!"
     assert int(app.config.get("tempo")) == 140, "agent action did not run"
+
+    # identify flow: agent emits 'identify' -> screen recognizes + shows now-playing.
+    import tabby.assistant.songid as songid_mod
+
+    class _FakeSID:
+        available = True
+
+        def __init__(self, input_device=None):
+            pass
+
+        def identify(self, seconds=6.0):
+            return {"title": "Wonderwall", "artist": "Oasis", "art_url": ""}
+
+    songid_mod.SongID = _FakeSID
+    s.client.ask = lambda text, context=None: {"reply": "Let me listen", "actions": [{"type": "identify"}]}
+    s._on_transcript("what's playing")
+    for _ in range(60):
+        s.update(0.02)
+        if s.state in ("now_playing", "replying"):
+            break
+        time.sleep(0.005)
+    assert s.state == "now_playing" and s.now_playing["title"] == "Wonderwall", f"identify failed: {s.state}"
+    s.draw(app.canvas)   # now-playing render must not crash
     app._shutdown()
-    print("  assistant: dispatch + transcript->agent->reply->action OK")
+    print("  assistant: agent->action, identify->now-playing OK")
 
 
 if __name__ == "__main__":

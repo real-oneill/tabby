@@ -282,26 +282,6 @@ class TabPlayerScreen(Screen):
 
         self._run_async("LOADING TAB", load, self._on_song_loaded)
 
-    def start_identify_load(self) -> None:
-        """Listen to the room, identify the song (Shazam), then load its tab."""
-        self.error = ""
-
-        def work():
-            from ..assistant.songid import SongID
-            sid = SongID(input_device=self.app.config.get("input_device"))
-            if not sid.available:
-                raise RuntimeError("song id not set up")
-            rec = sid.identify(6.0)
-            if not rec or not (rec.get("title") or rec.get("artist")):
-                raise RuntimeError("could not recognize")
-            results = songsterr.search(f"{rec['artist']} {rec['title']}".strip(), size=5)
-            playable = [r for r in results if r.has_player] or results
-            if not playable:
-                raise RuntimeError(f"no tab for {rec.get('title')}")
-            return songsterr.load_full_song(playable[0].song_id)
-
-        self._run_async("IDENTIFYING", work, self._on_song_loaded)
-
     def _start_synced(self, song) -> None:
         self.player = SyncedPlayer(song, track_index=getattr(song, "default_track", 0), rate=1.0)
         self.kind = "synced"

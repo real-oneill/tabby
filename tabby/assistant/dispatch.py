@@ -53,7 +53,5 @@ def _run_one(app, action: dict) -> None:
             if hasattr(app.current, "start_query_load"):
                 app.current.start_query_load(query)
 
-    elif kind == "identify_and_load":
-        _goto(app, "tabs")
-        if hasattr(app.current, "start_identify_load"):
-            app.current.start_identify_load()
+    # "identify" is handled by the assistant screen itself (shows the song + art),
+    # so it is intentionally not dispatched here.

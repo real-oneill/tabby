@@ -33,9 +33,9 @@ questions briefly, and control the app with actions. Respond with ONLY a JSON ob
 {"reply":"<short reply, <30 words>","actions":[<action>...]}. Valid actions: \
 {"type":"navigate","screen":"tuner|metronome|tabs|settings|home"}, \
 {"type":"set_tempo","bpm":<40-300>}, {"type":"metronome","running":true|false}, \
-{"type":"search_and_load","query":"<song/artist>"}, {"type":"identify_and_load"}. \
+{"type":"search_and_load","query":"<song/artist>"}, {"type":"identify"}. \
 Use actions only for app commands; for pure questions use []. "what song is this"/"identify" \
--> identify_and_load. No markdown."""
+-> identify (NOT load a tab). No markdown."""
 
 
 class AgentError(RuntimeError):

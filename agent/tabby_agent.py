@@ -32,11 +32,11 @@ Valid actions:
 - {"type": "set_tempo", "bpm": <integer 40-300>}
 - {"type": "metronome", "running": true|false}
 - {"type": "search_and_load", "query": "<song and/or artist>"}   // search Songsterr and load the top hit
-- {"type": "identify_and_load"}                                    // listen to the room and load what's playing
+- {"type": "identify"}                                            // listen to the room and tell the user what song is playing
 
 Rules:
 - Use actions only when the user wants to DO something in the app; for pure questions use [].
-- "identify what's playing" / "what song is this" -> identify_and_load.
+- "identify what's playing" / "what song is this" -> identify (NOT load a tab).
 - Combine actions when natural (e.g. set_tempo then metronome running:true).
 - Keep "reply" short, friendly, plain text. Never include markdown or code fences."""
 

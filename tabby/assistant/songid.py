@@ -75,4 +75,9 @@ class SongID:
         track = (out or {}).get("track")
         if not track:
             return None
-        return {"title": track.get("title", ""), "artist": track.get("subtitle", "")}
+        images = track.get("images") or {}
+        return {
+            "title": track.get("title", ""),
+            "artist": track.get("subtitle", ""),
+            "art_url": images.get("coverarthq") or images.get("coverart") or "",
+        }

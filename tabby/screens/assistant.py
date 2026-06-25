@@ -6,8 +6,10 @@ No keyboard: all AI features live here.
 
 from __future__ import annotations
 
+import io
 import threading
 import time
+import urllib.request
 
 import pygame
 
@@ -54,6 +56,7 @@ class AssistantScreen(Screen):
         self._after = None
         self._press_t = None           # when the talk button went down
         self._tap_mode = False         # tapped (vs held): auto-stop on silence
+        self.now_playing = None        # {title, artist, art} after a song-ID
 
         self.talk_btn = Button((100, 208, 200, 28), "HOLD OR TAP TO TALK", self._noop,
                                color=theme.PURPLE, text_color=theme.WHITE, font_size=10)
@@ -162,10 +165,56 @@ class AssistantScreen(Screen):
 
     def _on_reply(self, result: dict) -> None:
         self.reply = result.get("reply", "")
-        self.state = "replying"
         self.status = ""
         self._reply_t = 0.0
-        dispatch.run_actions(self.app, result.get("actions"))
+        actions = [a for a in (result.get("actions") or []) if isinstance(a, dict)]
+        wants_identify = any(a.get("type") == "identify" for a in actions)
+        dispatch.run_actions(self.app, [a for a in actions if a.get("type") != "identify"])
+        if wants_identify:
+            self._start_identify()
+        else:
+            self.state = "replying"
+
+    # --- song identification ----------------------------------------------
+
+    def _start_identify(self) -> None:
+        self.now_playing = None
+        self.state = "identifying"
+        self.status = "LISTENING FOR MUSIC..."
+        self._run_async(self._identify_work, self._on_identified)
+
+    def _identify_work(self):
+        from ..assistant.songid import SongID
+        sid = SongID(input_device=self.app.config.get("input_device"))
+        if not sid.available:
+            raise RuntimeError("song id not set up")
+        rec = sid.identify(6.0)
+        if not rec or not (rec.get("title") or rec.get("artist")):
+            return None
+        rec["art"] = self._fetch_art(rec.get("art_url"))
+        return rec
+
+    @staticmethod
+    def _fetch_art(url):
+        if not url:
+            return None
+        try:
+            with urllib.request.urlopen(url, timeout=10) as r:
+                data = r.read()
+            img = pygame.image.load(io.BytesIO(data))
+            return pygame.transform.smoothscale(img, (84, 84))
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _on_identified(self, rec) -> None:
+        self._reply_t = 0.0
+        if not rec:
+            self.reply = "Hmm, I couldn't make out what's playing."
+            self.state = "replying"
+            return
+        self.now_playing = rec
+        self.reply = f"That's {rec['title']} by {rec['artist']}"
+        self.state = "now_playing"
 
     # --- loop -------------------------------------------------------------
 
@@ -178,16 +227,17 @@ class AssistantScreen(Screen):
                 self._end_listen()
             elif not self._tap_mode and self.voice.record_elapsed() >= self._MAX_REC:
                 self._end_listen()
-        self.cat.set_state(self.state if self.state in ("idle", "listening", "thinking", "replying") else "idle")
+        cat_state = {"identifying": "listening", "now_playing": "replying"}.get(self.state, self.state)
+        self.cat.set_state(cat_state if cat_state in ("idle", "listening", "thinking", "replying") else "idle")
         self.cat.update(dt)
         self.talk_btn.text = {
-            "idle": "HOLD OR TAP TO TALK", "listening": "LISTENING...",
-            "thinking": "THINKING...", "replying": "HOLD OR TAP TO TALK", "error": "HOLD OR TAP TO TALK",
+            "listening": "LISTENING...", "thinking": "THINKING...", "identifying": "LISTENING...",
         }.get(self.state, "HOLD OR TAP TO TALK")
-        if self.state == "replying":
+        if self.state in ("replying", "now_playing"):
             self._reply_t += dt
             if self._reply_t > _REPLY_HOLD:
                 self.state = "idle"
+                self.now_playing = None
 
     def handle_event(self, event, pos) -> None:
         if pos is None:
@@ -205,13 +255,17 @@ class AssistantScreen(Screen):
     # --- draw -------------------------------------------------------------
 
     def draw(self, surface) -> None:
-        self.cat.draw(surface, (theme.INTERNAL_W // 2, TOPBAR_H + 56))
+        cx = theme.INTERNAL_W // 2
+        if self.state == "now_playing" and self.now_playing:
+            self._draw_now_playing(surface)
+        else:
+            self.cat.draw(surface, (cx, TOPBAR_H + 56))
 
-        if self.transcript and self.state in ("thinking", "replying"):
+        if self.transcript and self.state in ("thinking", "replying", "identifying", "now_playing"):
             draw_text(surface, _short('"' + self.transcript + '"', 46), 8, theme.TEXT_DIM,
-                      center=(theme.INTERNAL_W // 2, 138))
+                      center=(cx, 138))
 
-        if self.reply and self.state == "replying":
+        if self.reply and self.state in ("replying", "now_playing"):
             draw_panel(surface, self.reply_box, fill=theme.DARK, border=theme.PANEL_BORDER, width=1)
             for i, line in enumerate(_wrap(self.reply, 44)):
                 draw_text(surface, line, 8, theme.TEXT, midleft=(self.reply_box[0] + 6, self.reply_box[1] + 12 + i * 12))
@@ -223,6 +277,17 @@ class AssistantScreen(Screen):
                       center=(theme.INTERNAL_W // 2, 168))
 
         self.talk_btn.draw(surface)
+
+    def _draw_now_playing(self, surface) -> None:
+        cx = theme.INTERNAL_W // 2
+        draw_text(surface, "NOW PLAYING", 8, theme.ACCENT_ALT, center=(cx, TOPBAR_H + 8))
+        box = pygame.Rect(cx - 44, TOPBAR_H + 16, 88, 88)
+        draw_panel(surface, box, fill=theme.DARK, border=theme.PANEL_BORDER, width=2)
+        art = self.now_playing.get("art")
+        if art is not None:
+            surface.blit(art, (box.x + 2, box.y + 2))
+        else:
+            draw_text(surface, "?", 24, theme.TEXT_DIM, center=box.center)
 
 
 def _short(text: str, n: int = 40) -> str:
