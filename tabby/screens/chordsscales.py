@@ -20,7 +20,7 @@ from ..ui.widgets import Button, draw_text
 
 _W = theme.INTERNAL_W
 _PER_PAGE = 6
-_CAT_TAG = {"open": "", "barre": "BARRE", "7th": "7TH", "9th": "9TH",
+_CAT_TAG = {"open": "", "barre": "BARRE", "5th": "POWER", "7th": "7TH", "9th": "9TH",
             "min_pent": "PENT", "maj_pent": "PENT", "major": "MAJOR", "mixolydian": "MODE"}
 
 

@@ -110,6 +110,28 @@ CHORDS: list[Chord] = [
         _chord_pos("BARRE (A-SHAPE)", 2, [MUTED, 2, 4, 4, 4, 2], [0, 1, 3, 3, 3, 1],
                    barre=(1, 5, 1)),
     ]),
+    # --- power (5th) chords: root + fifth (+ octave), rest muted ---
+    Chord("E5", "5th", [
+        _chord_pos("OPEN", 1, [0, 2, 2, MUTED, MUTED, MUTED], [0, 1, 1, 0, 0, 0]),
+    ]),
+    Chord("A5", "5th", [
+        _chord_pos("OPEN", 1, [MUTED, 0, 2, 2, MUTED, MUTED], [0, 0, 1, 1, 0, 0]),
+    ]),
+    Chord("D5", "5th", [
+        _chord_pos("OPEN", 1, [MUTED, MUTED, 0, 2, 3, MUTED], [0, 0, 0, 1, 3, 0]),
+    ]),
+    Chord("F5", "5th", [
+        _chord_pos("1ST FRET", 1, [1, 3, 3, MUTED, MUTED, MUTED], [1, 3, 4, 0, 0, 0]),
+    ]),
+    Chord("B5", "5th", [
+        _chord_pos("2ND FRET", 1, [MUTED, 2, 4, 4, MUTED, MUTED], [0, 1, 3, 4, 0, 0]),
+    ]),
+    Chord("C5", "5th", [
+        _chord_pos("3RD FRET", 1, [MUTED, 3, 5, 5, MUTED, MUTED], [0, 1, 3, 4, 0, 0]),
+    ]),
+    Chord("G5", "5th", [
+        _chord_pos("3RD FRET", 1, [3, 5, 5, MUTED, MUTED, MUTED], [1, 3, 4, 0, 0, 0]),
+    ]),
     # --- dominant 7ths ---
     Chord("E7", "7th", [
         _chord_pos("OPEN", 1, [0, 2, 0, 1, 0, 0], [0, 2, 0, 1, 0, 0]),

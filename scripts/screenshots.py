@@ -131,6 +131,10 @@ def main():
     amaj7 = next(c for c in library.CHORDS if c.name == "A MAJOR 7")
     ch._open_item(amaj7)()
     save(app, "chords_chord_maj7")
+    # Power (5th) chord.
+    g5 = next(c for c in library.CHORDS if c.name == "G5")
+    ch._open_item(g5)()
+    save(app, "chords_chord_power")
     # Scale neck diagram (E minor pentatonic, open).
     ch._set_category("scale")()
     epent = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
