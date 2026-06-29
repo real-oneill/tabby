@@ -171,12 +171,19 @@ def test_chords_scales():
     app = App(fullscreen=False, scale=2)
     app.navigate("chords")
     screen = app.current
-    assert screen.mode == "browse"
-    assert screen._items() is library.CHORDS, "chords list missing"
+    assert screen.mode == "browse" and screen.group is None, "should open on the category menu"
 
-    # Scale: browse -> detail (diagram renders) -> play (cursor advances).
-    screen._set_category("scale")()
-    assert screen._items() is library.SCALES
+    # Every chord maps to a menu group, and each chord group resolves to items.
+    from tabby.screens.chordsscales import _MENU, _chord_group
+    for c in library.CHORDS:
+        assert _chord_group(c) in {"MAJOR", "MINOR", "POWER", "7TH", "9TH"}, c.name
+    for _label, key in _MENU:
+        screen._open_group(key)()
+        assert screen._group_items(), f"group {key} is empty"
+
+    # Open the SCALES group -> a scale -> detail (diagram renders) -> play.
+    screen._open_group("SCALES")()
+    assert screen.group == "SCALES" and screen._group_items() is library.SCALES
     scale = library.SCALES[0]
     screen._open_item(scale)()
     assert screen.mode == "detail" and screen.kind == "scale"

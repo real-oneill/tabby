@@ -20,8 +20,20 @@ from ..ui.widgets import Button, draw_text
 
 _W = theme.INTERNAL_W
 _PER_PAGE = 6
-_CAT_TAG = {"open": "", "barre": "BARRE", "5th": "POWER", "7th": "7TH", "9th": "9TH",
-            "min_pent": "PENT", "maj_pent": "PENT", "major": "MAJOR", "mixolydian": "MODE"}
+
+# Top-level browse menu: chord groups + scales. Each opens a filtered list.
+_MENU = [("MAJOR CHORDS", "MAJOR"), ("MINOR CHORDS", "MINOR"), ("POWER (5TH)", "POWER"),
+         ("7TH CHORDS", "7TH"), ("9TH CHORDS", "9TH"), ("SCALES", "SCALES")]
+
+
+def _chord_group(chord) -> str:
+    if chord.category == "5th":
+        return "POWER"
+    if chord.category == "7th":
+        return "7TH"
+    if chord.category == "9th":
+        return "9TH"
+    return "MINOR" if "MINOR" in chord.name else "MAJOR"
 
 
 class ChordsScalesScreen(Screen):
@@ -29,7 +41,7 @@ class ChordsScalesScreen(Screen):
 
     def __init__(self, app) -> None:
         super().__init__(app)
-        self.category = "chord"        # chord | scale
+        self.group = None              # None = category menu; else a _MENU key
         self.page = 0
         self.mode = "browse"           # browse | detail | play
         self.selected = None
@@ -72,39 +84,60 @@ class ChordsScalesScreen(Screen):
     def on_exit(self) -> None:
         self.app.audio.stop_output()
 
-    # --- Browse -----------------------------------------------------------
+    # --- Browse (category menu -> filtered list) --------------------------
 
-    def _items(self) -> list:
-        return library.CHORDS if self.category == "chord" else library.SCALES
+    def _group_items(self) -> list:
+        if self.group == "SCALES":
+            return library.SCALES
+        return [c for c in library.CHORDS if _chord_group(c) == self.group]
 
-    def _set_category(self, cat: str):
+    def _to_browse(self) -> None:
+        """Top level: the category menu."""
+        self.group = None
+        self.page = 0
+        self.title = "CHORDS"
+        self.mode = "browse"
+        self._build_browse()
+
+    def _open_group(self, key: str):
         def go() -> None:
-            self.category = cat
+            self.group = key
             self.page = 0
+            self.title = "SCALES" if key == "SCALES" else "CHORDS"
+            self.mode = "browse"
             self._build_browse()
         return go
 
-    def _to_browse(self) -> None:
+    def _to_list(self) -> None:
+        """Return from a diagram to the current group's list (keeps the group)."""
         self.mode = "browse"
         self._build_browse()
 
     def _build_browse(self) -> None:
-        active, idle = theme.ACCENT, theme.PANEL
+        if self.group is None:
+            self._build_menu()
+        else:
+            self._build_list()
+
+    def _build_menu(self) -> None:
+        self.nav_buttons = []
+        y = TOPBAR_H + 8
+        for label, key in _MENU:
+            color = theme.GOOD if key == "SCALES" else theme.PANEL
+            self.nav_buttons.append(Button((12, y, _W - 24, 24), label, self._open_group(key),
+                                          color=color, text_color=theme.WHITE, font_size=10))
+            y += 28
+
+    def _build_list(self) -> None:
         self.nav_buttons = [
-            Button((12, TOPBAR_H + 8, 110, 22), "CHORDS", self._set_category("chord"),
-                   color=active if self.category == "chord" else idle,
-                   text_color=theme.BLACK if self.category == "chord" else theme.WHITE, font_size=10),
-            Button((130, TOPBAR_H + 8, 110, 22), "SCALES", self._set_category("scale"),
-                   color=active if self.category == "scale" else idle,
-                   text_color=theme.BLACK if self.category == "scale" else theme.WHITE, font_size=10),
+            Button((12, TOPBAR_H + 8, 130, 22), "< CATEGORIES", self._to_browse,
+                   color=theme.SHADOW, text_color=theme.WHITE, font_size=8),
         ]
-        items = self._items()
+        items = self._group_items()
         start = self.page * _PER_PAGE
         y = TOPBAR_H + 8 + 28
         for item in items[start:start + _PER_PAGE]:
-            tag = _CAT_TAG.get(item.category if self.kind_of(item) == "chord" else item.kind, "")
-            label = f"{item.name}   [{tag}]" if tag else item.name
-            self.nav_buttons.append(Button((12, y, _W - 24, 22), label, self._open_item(item),
+            self.nav_buttons.append(Button((12, y, _W - 24, 22), item.name, self._open_item(item),
                                           color=theme.PANEL, text_color=theme.TEXT, font_size=8))
             y += 26
         if len(items) > _PER_PAGE:
@@ -116,7 +149,7 @@ class ChordsScalesScreen(Screen):
         return "chord" if isinstance(item, library.Chord) else "scale"
 
     def _turn(self, delta: int) -> None:
-        pages = max(1, (len(self._items()) + _PER_PAGE - 1) // _PER_PAGE)
+        pages = max(1, (len(self._group_items()) + _PER_PAGE - 1) // _PER_PAGE)
         self.page = (self.page + delta) % pages
         self._build_browse()
 
@@ -124,6 +157,7 @@ class ChordsScalesScreen(Screen):
         def go() -> None:
             self.selected = item
             self.kind = self.kind_of(item)
+            self.title = "SCALES" if self.kind == "scale" else "CHORDS"
             self.pos_index = 0
             self.chord_mode = "arpeggio"
             self._to_detail()
@@ -136,7 +170,7 @@ class ChordsScalesScreen(Screen):
         self._build_detail_buttons()
 
     def _build_detail_buttons(self) -> None:
-        btns = [Button((8, 182, 46, 26), "LIST", self._to_browse, color=theme.PANEL, text_color=theme.WHITE, font_size=8)]
+        btns = [Button((8, 182, 46, 26), "LIST", self._to_list, color=theme.PANEL, text_color=theme.WHITE, font_size=8)]
         if self.selected is not None and len(self.selected.positions) > 1:
             btns.append(Button((58, 182, 46, 26), "PREV", lambda: self._cycle_pos(-1), color=theme.SHADOW, text_color=theme.WHITE, font_size=8))
             btns.append(Button((108, 182, 46, 26), "NEXT", lambda: self._cycle_pos(1), color=theme.SHADOW, text_color=theme.WHITE, font_size=8))
@@ -162,7 +196,8 @@ class ChordsScalesScreen(Screen):
         if match is None:
             return False
         kind, item = match
-        self.category = kind
+        # Set the group so the diagram's LIST button returns to a sensible list.
+        self.group = "SCALES" if kind == "scale" else _chord_group(item)
         self._open_item(item)()
         return True
 

@@ -111,9 +111,11 @@ def main():
 
     app.navigate("chords")
     ch = app.current
-    save(app, "chords_browse")
-    # Chord diagram (E major, open) + the 12th-fret barre position.
+    save(app, "chords_menu")               # top-level category menu
     from tabby.chords import library
+    ch._open_group("7TH")()                 # a filtered chord list
+    save(app, "chords_list")
+    # Chord diagram (E major, open) + the 12th-fret barre position.
     emaj = next(c for c in library.CHORDS if c.name == "E MAJOR")
     ch._open_item(emaj)()
     save(app, "chords_chord_open")
@@ -136,7 +138,7 @@ def main():
     ch._open_item(g5)()
     save(app, "chords_chord_power")
     # Scale neck diagram (E minor pentatonic, open).
-    ch._set_category("scale")()
+    ch._open_group("SCALES")()
     epent = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
     ch._open_item(epent)()
     save(app, "chords_scale")
