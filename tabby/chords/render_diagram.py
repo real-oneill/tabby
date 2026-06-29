@@ -52,14 +52,16 @@ def draw_chord(surface, position: ChordPosition, area: pygame.Rect) -> None:
         draw_text(surface, str(position.base_fret), 8, theme.TEXT_DIM,
                   midright=(x_of(6) - dot_r - 3, row_y(1)))
 
-    # Barre capsule (behind the dots).
+    # Barre capsule (behind the dots), drawn at the barre's own fret row.
     if position.barre is not None:
-        _, s_from, s_to = position.barre
-        xa, xb = sorted((x_of(s_from), x_of(s_to)))
-        y = row_y(1)
-        surface.fill(theme.ACCENT, (xa, y - dot_r, xb - xa, 2 * dot_r))
-        pygame.draw.circle(surface, theme.ACCENT, (xa, y), dot_r)
-        pygame.draw.circle(surface, theme.ACCENT, (xb, y), dot_r)
+        _, s_from, s_to, b_fret = position.barre
+        b_row = b_fret - position.base_fret + 1
+        if 1 <= b_row <= _ROWS:
+            xa, xb = sorted((x_of(s_from), x_of(s_to)))
+            y = row_y(b_row)
+            surface.fill(theme.ACCENT, (xa, y - dot_r, xb - xa, 2 * dot_r))
+            pygame.draw.circle(surface, theme.ACCENT, (xa, y), dot_r)
+            pygame.draw.circle(surface, theme.ACCENT, (xb, y), dot_r)
 
     # Per-string markers + dots.
     for hit in position.hits:

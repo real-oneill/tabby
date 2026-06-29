@@ -137,6 +137,23 @@ def main():
     g5 = next(c for c in library.CHORDS if c.name == "G5")
     ch._open_item(g5)()
     save(app, "chords_chord_power")
+    # C9: barre now drawn at its own fret row (was a bug at the base fret).
+    c9 = next(c for c in library.CHORDS if c.name == "C9")
+    ch._open_item(c9)()
+    save(app, "chords_chord_c9")
+    # Flat barre chord.
+    ebmaj = next(c for c in library.CHORDS if c.name == "Eb MAJOR")
+    ch._open_item(ebmaj)()
+    save(app, "chords_chord_flat")
+    # A 7th chord shown two ways on the neck (E7: open + 7th-fret barre).
+    e7 = next(c for c in library.CHORDS if c.name == "E7")
+    ch._open_item(e7)()
+    ch._cycle_pos(1)
+    save(app, "chords_chord_e7_alt")
+    # New flat 9th.
+    f9 = next(c for c in library.CHORDS if c.name == "F9")
+    ch._open_item(f9)()
+    save(app, "chords_chord_f9")
     # Scale neck diagram (E minor pentatonic, open).
     ch._open_group("SCALES")()
     epent = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")

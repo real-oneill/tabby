@@ -28,7 +28,7 @@ class ChordPosition:
     label: str                              # "OPEN", "12TH FRET", "BARRE (E-SHAPE)"
     base_fret: int                          # fret of the diagram's top fret row
     hits: list[StringHit]                   # exactly 6, one per string
-    barre: tuple[int, int, int] | None = None  # (finger, from_string, to_string)
+    barre: tuple[int, int, int, int] | None = None  # (finger, from_string, to_string, fret)
 
 
 @dataclass
@@ -79,7 +79,7 @@ CHORDS: list[Chord] = [
     Chord("E MAJOR", "open", [
         _chord_pos("OPEN", 1, [0, 2, 2, 1, 0, 0], [0, 2, 3, 1, 0, 0]),
         _chord_pos("12TH FRET", 12, [12, 14, 14, 13, 12, 12], [1, 3, 4, 2, 1, 1],
-                   barre=(1, 6, 1)),
+                   barre=(1, 6, 1, 12)),
     ]),
     Chord("E MINOR", "open", [
         _chord_pos("OPEN", 1, [0, 2, 2, 0, 0, 0], [0, 2, 3, 0, 0, 0]),
@@ -96,6 +96,12 @@ CHORDS: list[Chord] = [
     Chord("D MINOR", "open", [
         _chord_pos("OPEN", 1, [MUTED, MUTED, 0, 2, 3, 1], [0, 0, 0, 2, 3, 1]),
     ]),
+    Chord("Bb MINOR", "barre", [
+        _chord_pos("BARRE (Am-SHAPE)", 1, [MUTED, 1, 3, 3, 2, 1], [0, 1, 3, 4, 2, 1], barre=(1, 5, 1, 1)),
+    ]),
+    Chord("Eb MINOR", "barre", [
+        _chord_pos("BARRE (Am-SHAPE)", 6, [MUTED, 6, 8, 8, 7, 6], [0, 1, 3, 4, 2, 1], barre=(1, 5, 1, 6)),
+    ]),
     Chord("G MAJOR", "open", [
         _chord_pos("OPEN", 1, [3, 2, 0, 0, 0, 3], [2, 1, 0, 0, 0, 3]),
     ]),
@@ -104,21 +110,40 @@ CHORDS: list[Chord] = [
     ]),
     Chord("F MAJOR", "barre", [
         _chord_pos("BARRE (E-SHAPE)", 1, [1, 3, 3, 2, 1, 1], [1, 3, 4, 2, 1, 1],
-                   barre=(1, 6, 1)),
+                   barre=(1, 6, 1, 1)),
     ]),
     Chord("B MAJOR", "barre", [
         _chord_pos("BARRE (A-SHAPE)", 2, [MUTED, 2, 4, 4, 4, 2], [0, 1, 3, 3, 3, 1],
-                   barre=(1, 5, 1)),
+                   barre=(1, 5, 1, 2)),
+    ]),
+    # --- flat major chords (movable barre shapes) ---
+    Chord("Bb MAJOR", "barre", [
+        _chord_pos("BARRE (A-SHAPE)", 1, [MUTED, 1, 3, 3, 3, 1], [0, 1, 3, 3, 3, 1], barre=(1, 5, 1, 1)),
+    ]),
+    Chord("Db MAJOR", "barre", [
+        _chord_pos("BARRE (A-SHAPE)", 4, [MUTED, 4, 6, 6, 6, 4], [0, 1, 3, 3, 3, 1], barre=(1, 5, 1, 4)),
+    ]),
+    Chord("Eb MAJOR", "barre", [
+        _chord_pos("BARRE (A-SHAPE)", 6, [MUTED, 6, 8, 8, 8, 6], [0, 1, 3, 3, 3, 1], barre=(1, 5, 1, 6)),
+    ]),
+    Chord("Gb MAJOR", "barre", [
+        _chord_pos("BARRE (E-SHAPE)", 2, [2, 4, 4, 3, 2, 2], [1, 3, 4, 2, 1, 1], barre=(1, 6, 1, 2)),
+    ]),
+    Chord("Ab MAJOR", "barre", [
+        _chord_pos("BARRE (E-SHAPE)", 4, [4, 6, 6, 5, 4, 4], [1, 3, 4, 2, 1, 1], barre=(1, 6, 1, 4)),
     ]),
     # --- power (5th) chords: root + fifth (+ octave), rest muted ---
     Chord("E5", "5th", [
         _chord_pos("OPEN", 1, [0, 2, 2, MUTED, MUTED, MUTED], [0, 1, 1, 0, 0, 0]),
+        _chord_pos("7TH FRET", 7, [MUTED, 7, 9, 9, MUTED, MUTED], [0, 1, 3, 4, 0, 0]),
     ]),
     Chord("A5", "5th", [
         _chord_pos("OPEN", 1, [MUTED, 0, 2, 2, MUTED, MUTED], [0, 0, 1, 1, 0, 0]),
+        _chord_pos("5TH FRET", 5, [5, 7, 7, MUTED, MUTED, MUTED], [1, 3, 4, 0, 0, 0]),
     ]),
     Chord("D5", "5th", [
         _chord_pos("OPEN", 1, [MUTED, MUTED, 0, 2, 3, MUTED], [0, 0, 0, 1, 3, 0]),
+        _chord_pos("5TH FRET", 5, [MUTED, 5, 7, 7, MUTED, MUTED], [0, 1, 3, 4, 0, 0]),
     ]),
     Chord("F5", "5th", [
         _chord_pos("1ST FRET", 1, [1, 3, 3, MUTED, MUTED, MUTED], [1, 3, 4, 0, 0, 0]),
@@ -135,9 +160,11 @@ CHORDS: list[Chord] = [
     # --- dominant 7ths ---
     Chord("E7", "7th", [
         _chord_pos("OPEN", 1, [0, 2, 0, 1, 0, 0], [0, 2, 0, 1, 0, 0]),
+        _chord_pos("7TH FRET", 7, [MUTED, 7, 9, 7, 9, 7], [0, 1, 3, 1, 4, 1], barre=(1, 5, 1, 7)),
     ]),
     Chord("A7", "7th", [
         _chord_pos("OPEN", 1, [MUTED, 0, 2, 0, 2, 0], [0, 0, 2, 0, 3, 0]),
+        _chord_pos("5TH FRET", 5, [5, 7, 5, 6, 5, 5], [1, 3, 1, 2, 1, 1], barre=(1, 6, 1, 5)),
     ]),
     Chord("B7", "7th", [
         _chord_pos("OPEN", 1, [MUTED, 2, 1, 2, 0, 2], [0, 2, 1, 3, 0, 4]),
@@ -147,9 +174,10 @@ CHORDS: list[Chord] = [
     ]),
     Chord("D7", "7th", [
         _chord_pos("OPEN", 1, [MUTED, MUTED, 0, 2, 1, 2], [0, 0, 0, 2, 1, 3]),
+        _chord_pos("5TH FRET", 5, [MUTED, 5, 7, 5, 7, 5], [0, 1, 3, 1, 4, 1], barre=(1, 5, 1, 5)),
     ]),
     Chord("F7", "7th", [
-        _chord_pos("BARRE (E-SHAPE)", 1, [1, 3, 1, 2, 1, 1], [1, 3, 1, 2, 1, 1], barre=(1, 6, 1)),
+        _chord_pos("BARRE (E-SHAPE)", 1, [1, 3, 1, 2, 1, 1], [1, 3, 1, 2, 1, 1], barre=(1, 6, 1, 1)),
     ]),
     Chord("G7", "7th", [
         _chord_pos("OPEN", 1, [3, 2, 0, 0, 0, 1], [3, 2, 0, 0, 0, 1]),
@@ -175,7 +203,7 @@ CHORDS: list[Chord] = [
         _chord_pos("OPEN", 1, [MUTED, 3, 2, 0, 0, 0], [0, 3, 2, 0, 0, 0]),
     ]),
     Chord("D MAJOR 7", "7th", [
-        _chord_pos("OPEN", 1, [MUTED, MUTED, 0, 2, 2, 2], [0, 0, 0, 1, 1, 1], barre=(1, 3, 1)),
+        _chord_pos("OPEN", 1, [MUTED, MUTED, 0, 2, 2, 2], [0, 0, 0, 1, 1, 1], barre=(1, 3, 1, 2)),
     ]),
     Chord("E MAJOR 7", "7th", [
         _chord_pos("OPEN", 1, [0, 2, 1, 1, 0, 0], [0, 3, 1, 2, 0, 0]),
@@ -186,24 +214,31 @@ CHORDS: list[Chord] = [
     Chord("G MAJOR 7", "7th", [
         _chord_pos("OPEN", 1, [3, 2, 0, 0, 0, 2], [3, 2, 0, 0, 0, 1]),
     ]),
-    # --- dominant 9ths (open voicings) ---
+    # --- dominant 9ths (open + movable voicings) ---
     Chord("E9", "9th", [
         _chord_pos("OPEN", 1, [0, 2, 0, 1, 0, 2], [0, 2, 0, 1, 0, 3]),
+        _chord_pos("7TH FRET", 6, [MUTED, 7, 6, 7, 7, 7], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1, 7)),
     ]),
     Chord("A9", "9th", [
         _chord_pos("OPEN", 1, [MUTED, 0, 2, 4, 2, 3], [0, 0, 1, 4, 2, 3]),
     ]),
     Chord("B9", "9th", [
-        _chord_pos("OPEN", 1, [MUTED, 2, 1, 2, 2, 2], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1)),
+        _chord_pos("OPEN", 1, [MUTED, 2, 1, 2, 2, 2], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1, 2)),
     ]),
     Chord("C9", "9th", [
-        _chord_pos("OPEN", 1, [MUTED, 3, 2, 3, 3, 3], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1)),
+        _chord_pos("OPEN", 1, [MUTED, 3, 2, 3, 3, 3], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1, 3)),
+    ]),
+    Chord("Eb9", "9th", [
+        _chord_pos("6TH FRET", 5, [MUTED, 6, 5, 6, 6, 6], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1, 6)),
     ]),
     Chord("D9", "9th", [
-        _chord_pos("5TH FRET", 4, [MUTED, 5, 4, 5, 5, 5], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1)),
+        _chord_pos("5TH FRET", 4, [MUTED, 5, 4, 5, 5, 5], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1, 5)),
+    ]),
+    Chord("F9", "9th", [
+        _chord_pos("8TH FRET", 7, [MUTED, 8, 7, 8, 8, 8], [0, 2, 1, 3, 3, 3], barre=(3, 3, 1, 8)),
     ]),
     Chord("G9", "9th", [
-        _chord_pos("3RD FRET", 3, [3, 5, 3, 4, 3, 5], [1, 3, 1, 2, 1, 4], barre=(1, 6, 2)),
+        _chord_pos("3RD FRET", 3, [3, 5, 3, 4, 3, 5], [1, 3, 1, 2, 1, 4], barre=(1, 6, 2, 3)),
     ]),
 ]
 
