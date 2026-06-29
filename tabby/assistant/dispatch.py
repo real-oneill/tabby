@@ -6,7 +6,7 @@ methods, so the assistant can drive the rest of Tabby.
 
 from __future__ import annotations
 
-_SCREENS = {"home", "tuner", "metronome", "tabs", "settings", "assistant"}
+_SCREENS = {"home", "tuner", "metronome", "tabs", "settings", "assistant", "chords"}
 
 
 def run_actions(app, actions) -> None:
@@ -52,6 +52,12 @@ def _run_one(app, action: dict) -> None:
             _goto(app, "tabs")
             if hasattr(app.current, "start_query_load"):
                 app.current.start_query_load(query)
+
+    elif kind in ("show_chord", "show_scale"):
+        _goto(app, "chords")
+        name = str(action.get("name", "")).strip()
+        if name and hasattr(app.current, "open_by_name"):
+            app.current.open_by_name(name)
 
     # "identify" is handled by the assistant screen itself (shows the song + art),
     # so it is intentionally not dispatched here.

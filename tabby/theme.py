@@ -57,6 +57,7 @@ TOOL_COLORS = {
     "tuner": CYAN,
     "metronome": ORANGE,
     "tabs": GREEN,
+    "chords": BLUE,
     "assistant": PURPLE,
     "settings": GRAY,
 }

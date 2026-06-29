@@ -35,7 +35,7 @@ def test_pitch():
 
 def test_screens():
     app = App(fullscreen=False, scale=2)
-    for name in ["tuner", "metronome", "tabs", "assistant", "settings"]:
+    for name in ["tuner", "metronome", "tabs", "chords", "assistant", "settings"]:
         app.navigate(name)
         for _ in range(3):
             app.current.update(0.05)
@@ -164,6 +164,65 @@ def test_songsterr_flow():
     print("  songsterr flow: search -> full load -> multi-track play + auto-save/reload + delete OK")
 
 
+def test_chords_scales():
+    from tabby.chords import library
+    from tabby.chords.songbuild import chord_song, scale_song
+
+    app = App(fullscreen=False, scale=2)
+    app.navigate("chords")
+    screen = app.current
+    assert screen.mode == "browse"
+    assert screen._items() is library.CHORDS, "chords list missing"
+
+    # Scale: browse -> detail (diagram renders) -> play (cursor advances).
+    screen._set_category("scale")()
+    assert screen._items() is library.SCALES
+    scale = library.SCALES[0]
+    screen._open_item(scale)()
+    assert screen.mode == "detail" and screen.kind == "scale"
+    screen.draw(app.canvas)                 # neck diagram must not crash
+    screen._to_play()
+    assert screen.player is not None and screen.player.track.total_beats > 0
+    p = screen.player
+    p.playing = True
+    for _ in range(20):                     # 1.0s
+        screen.update(0.05)
+    expected_beats = p.tempo / 60.0
+    assert abs(p.pos - min(expected_beats, p.total)) < 0.3, f"scale pos {p.pos:.2f}"
+
+    # Chord: multiple neck positions (E major open + 12th) + strum/arp toggle.
+    emaj = next(c for c in library.CHORDS if c.name == "E MAJOR")
+    screen._open_item(emaj)()
+    assert len(emaj.positions) > 1, "E major should have 2 positions"
+    screen.draw(app.canvas)                 # chord box must not crash
+    screen._cycle_pos(1)
+    assert screen.pos_index == 1
+    screen._toggle_chord_mode()
+    assert screen.chord_mode == "strum"
+    screen._to_play()
+    assert screen.player is not None
+
+    # Builders: open strings sound, muted are skipped; beat counts as specified.
+    pos = emaj.positions[0]
+    non_muted = [h for h in pos.hits if h.fret != library.MUTED]
+    strum = chord_song(emaj, pos, mode="strum", repeats=4)
+    assert len(strum.tracks[0].beats) == 5                       # 4 strums + trailing rest
+    assert len(strum.tracks[0].beats[0].notes) == len(non_muted)
+    arp = chord_song(emaj, pos, mode="arpeggio")
+    assert len(arp.tracks[0].beats) == len(non_muted) + 1
+    ss = scale_song(scale, scale.positions[0], descend=True)
+    assert len(ss.tracks[0].beats) == 2 * len(scale.positions[0].sequence) + 1
+
+    # Assistant voice lookup lands on the right diagram.
+    from tabby.assistant import dispatch
+    while len(app.stack) > 1:
+        app.go_back()
+    dispatch.run_actions(app, [{"type": "show_chord", "name": "E major"}])
+    assert app.current.title == "CHORDS" and app.current.selected.name == "E MAJOR", "voice lookup failed"
+    app._shutdown()
+    print("  chords/scales: browse->detail->play, diagrams, builders, voice lookup OK")
+
+
 def test_assistant():
     import time
     app = App(fullscreen=False, scale=2)
@@ -226,5 +285,6 @@ if __name__ == "__main__":
     test_screens()
     test_tab_player()
     test_songsterr_flow()
+    test_chords_scales()
     test_assistant()
     print("SMOKE TEST PASSED")

@@ -109,6 +109,34 @@ def main():
     save(app, "tabs_delete")
     app.go_back()
 
+    app.navigate("chords")
+    ch = app.current
+    save(app, "chords_browse")
+    # Chord diagram (E major, open) + the 12th-fret barre position.
+    from tabby.chords import library
+    emaj = next(c for c in library.CHORDS if c.name == "E MAJOR")
+    ch._open_item(emaj)()
+    save(app, "chords_chord_open")
+    ch._cycle_pos(1)
+    save(app, "chords_chord_12th")
+    # Blues 9th chord.
+    e9 = next(c for c in library.CHORDS if c.name == "E9")
+    ch._open_item(e9)()
+    save(app, "chords_chord_9th")
+    # Scale neck diagram (E minor pentatonic, open).
+    ch._set_category("scale")()
+    epent = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
+    ch._open_item(epent)()
+    save(app, "chords_scale")
+    # Play-along view.
+    ch._to_play()
+    ch.player.playing = True
+    for _ in range(24):
+        ch.update(0.05)
+    ch.update(0.0)
+    save(app, "chords_play")
+    app.go_back()
+
     app._shutdown()
     print("DONE")
 

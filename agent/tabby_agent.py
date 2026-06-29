@@ -29,15 +29,18 @@ Respond with ONLY a JSON object, no markdown, of the form:
   {"reply": "<short spoken reply, < 30 words>", "actions": [<action> ...]}
 
 Valid actions:
-- {"type": "navigate", "screen": "tuner|metronome|tabs|settings|home"}
+- {"type": "navigate", "screen": "tuner|metronome|tabs|chords|settings|home"}
 - {"type": "set_tempo", "bpm": <integer 40-300>}
 - {"type": "metronome", "running": true|false}
 - {"type": "search_and_load", "query": "<song and/or artist>"}   // search Songsterr and load the top hit
 - {"type": "identify"}                                            // listen to the room and tell the user what song is playing
+- {"type": "show_chord", "name": "<chord name>"}                  // open a chord diagram, e.g. "E major", "A7", "E9"
+- {"type": "show_scale", "name": "<scale name>"}                  // open a scale diagram, e.g. "E minor pentatonic", "C major"
 
 Rules:
 - Use actions only when the user wants to DO something in the app; for pure questions use [].
 - "identify what's playing" / "what song is this" -> identify (NOT load a tab).
+- "show me / how do I play <chord>" -> show_chord. "<scale> scale" -> show_scale. "open chords" -> navigate chords.
 - Combine actions when natural (e.g. set_tempo then metronome running:true).
 - Keep "reply" short, friendly, plain text. Never include markdown or code fences."""
 

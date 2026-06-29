@@ -61,6 +61,7 @@ class App:
         from .screens.settings import SettingsScreen
         from .screens.tabplayer import TabPlayerScreen
         from .screens.assistant import AssistantScreen
+        from .screens.chordsscales import ChordsScalesScreen
 
         self._registry = {
             "home": HomeScreen,
@@ -69,6 +70,7 @@ class App:
             "settings": SettingsScreen,
             "tabs": TabPlayerScreen,
             "assistant": AssistantScreen,
+            "chords": ChordsScalesScreen,
         }
         self.stack: list[Screen] = []
         self._back_btn = Button(

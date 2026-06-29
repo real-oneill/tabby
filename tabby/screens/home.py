@@ -25,6 +25,7 @@ class HomeScreen(Screen):
         ("TUNER", "tuner", "tuner"),
         ("METRO", "metronome", "metronome"),
         ("TABS", "tabs", "tabs"),
+        ("CHORDS", "chords", "chords"),
         ("ASSIST", "assistant", "assistant"),
         ("CONFIG", "settings", "settings"),
     ]
