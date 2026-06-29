@@ -48,6 +48,8 @@ class ChordsScalesScreen(Screen):
         self.detail_buttons: list[Button] = []
 
         self.diagram = pygame.Rect(8, TOPBAR_H + 6, _W - 16, 150)
+        # Chord boxes start lower so the name/markers sit above them, never overlapping.
+        self.chord_area = pygame.Rect(8, TOPBAR_H + 20, _W - 16, 136)
         self.view = pygame.Rect(8, TOPBAR_H + 4, _W - 16, 176)
 
         # Play-mode transport.
@@ -248,17 +250,18 @@ class ChordsScalesScreen(Screen):
         pos = item.positions[self.pos_index]
         footer = pos.label
         if len(item.positions) > 1:
-            footer = f"{pos.label}   {self.pos_index + 1}/{len(item.positions)}"
+            footer = f"{pos.label}  {self.pos_index + 1}/{len(item.positions)}"
+        # Name + position label sit above the diagram so neither collides with the
+        # chord's X/O markers or the neck's fret numbers. Chord names/labels are short
+        # (one top line); scale names are long, so they get two stacked centered lines.
         if self.kind == "chord":
-            draw_chord(surface, pos, self.diagram)
+            draw_chord(surface, pos, self.chord_area)
             draw_text(surface, item.name, 10, theme.TEXT, center=(_W // 2, TOPBAR_H + 10))
-            draw_text(surface, footer, 8, theme.ACCENT_ALT, center=(_W // 2, self.diagram.bottom - 6))
+            draw_text(surface, footer, 8, theme.ACCENT_ALT, midright=(self.diagram.right - 4, TOPBAR_H + 11))
         else:
-            # The neck fills the area and labels frets along the bottom, so name +
-            # position share the top line (left / right) to avoid colliding.
             draw_neck(surface, pos, self.diagram)
-            draw_text(surface, item.name, 10, theme.TEXT, midleft=(self.diagram.left + 4, TOPBAR_H + 10))
-            draw_text(surface, footer, 8, theme.ACCENT_ALT, midright=(self.diagram.right - 4, TOPBAR_H + 10))
+            draw_text(surface, item.name, 8, theme.TEXT, center=(_W // 2, TOPBAR_H + 7))
+            draw_text(surface, footer, 8, theme.ACCENT_ALT, center=(_W // 2, TOPBAR_H + 16))
         for btn in self.detail_buttons:
             btn.draw(surface)
 

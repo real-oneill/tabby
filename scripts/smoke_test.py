@@ -213,6 +213,21 @@ def test_chords_scales():
     ss = scale_song(scale, scale.positions[0], descend=True)
     assert len(ss.tracks[0].beats) == 2 * len(scale.positions[0].sequence) + 1
 
+    # Every chord/scale position is structurally sane and renders without crashing.
+    for chord in library.CHORDS:
+        for cp in chord.positions:
+            assert len(cp.hits) == 6, f"{chord.name} position needs 6 strings"
+            assert all(h.fret == library.MUTED or h.fret >= 0 for h in cp.hits), chord.name
+            assert all(0 <= h.finger <= 4 for h in cp.hits), f"{chord.name} bad finger"
+            screen._open_item(chord)()
+            screen.draw(app.canvas)
+    for sc in library.SCALES:
+        for spos in sc.positions:
+            assert spos.sequence, f"{sc.name} position has no play-along sequence"
+            assert spos.roots, f"{sc.name} position has no root marked"
+            screen._open_item(sc)()
+            screen.draw(app.canvas)
+
     # Assistant voice lookup lands on the right diagram.
     from tabby.assistant import dispatch
     while len(app.stack) > 1:

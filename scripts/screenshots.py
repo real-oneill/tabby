@@ -123,11 +123,24 @@ def main():
     e9 = next(c for c in library.CHORDS if c.name == "E9")
     ch._open_item(e9)()
     save(app, "chords_chord_9th")
+    # D major: previously the name overlapped the X/O markers (regression check).
+    dmaj = next(c for c in library.CHORDS if c.name == "D MAJOR")
+    ch._open_item(dmaj)()
+    save(app, "chords_chord_dmajor")
+    # A major 7 (new 7th-family chord).
+    amaj7 = next(c for c in library.CHORDS if c.name == "A MAJOR 7")
+    ch._open_item(amaj7)()
+    save(app, "chords_chord_maj7")
     # Scale neck diagram (E minor pentatonic, open).
     ch._set_category("scale")()
     epent = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
     ch._open_item(epent)()
     save(app, "chords_scale")
+    # A different pentatonic shape up the neck (A minor pentatonic, 7th-fret box).
+    apent = next(s for s in library.SCALES if s.name == "A MINOR PENTATONIC")
+    ch._open_item(apent)()
+    ch._cycle_pos(2)
+    save(app, "chords_scale_box")
     # Play-along view.
     ch._to_play()
     ch.player.playing = True

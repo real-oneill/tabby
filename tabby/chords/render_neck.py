@@ -19,7 +19,7 @@ _GRID = (48, 40, 60)  # faint fret wire, matching render_synced
 
 def draw_neck(surface, position: ScalePosition, area: pygame.Rect) -> None:
     n = 6
-    top = area.y + 16
+    top = area.y + 22
     bottom = area.bottom - 14
     span = bottom - top
     rows = [int(top + span * i / (n - 1)) for i in range(n)]   # row i -> string i+1
