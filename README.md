@@ -41,6 +41,28 @@ The app renders to a 400×240 internal surface and scales ×2 to 800×480 for ch
 - `--windowed` — force a window (default off-Pi).
 - `--scale N` — integer upscale factor (default 2).
 
+## Speaker output (Adafruit I2S bonnet)
+
+For sound on the Pi (metronome + chord/scale play-along click) use an
+[Adafruit Speaker Bonnet](https://www.adafruit.com/product/3346) (MAX98357A I2S amp).
+Seat it on the 40-pin header, then on the Pi run the included setup script:
+
+```bash
+./scripts/setup_speaker.sh   # enables the max98357a device-tree overlay
+sudo reboot
+./scripts/setup_speaker.sh   # sets the bonnet as the default PipeWire sink
+```
+
+Current Raspberry Pi OS runs **PipeWire**, so once the `max98357a` overlay is enabled the
+bonnet shows up as an audio sink automatically; the script makes it the **default** sink
+(WirePlumber remembers it across reboots) and sets the volume. It also installs
+`pipewire-alsa` — Tabby uses `sounddevice`/PortAudio (raw ALSA), and that bridge is what
+lets the ALSA `default` reach PipeWire (without it PipeWire owns the cards exclusively and
+PortAudio finds no output). Onboard HDMI audio is left intact. Test with
+`pw-play /usr/share/sounds/alsa/Front_Center.wav`, adjust with `wpctl set-volume <id> 5%+`.
+Tabby needs no change — it outputs to the default device (Settings → **AUDIO OUTPUT =
+DEFAULT**); just relaunch with `./scripts/launch.sh`.
+
 ## Layout
 
 ```
