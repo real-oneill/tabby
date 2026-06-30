@@ -104,7 +104,7 @@ class AudioEngine:
         try:
             self._out_stream = sd.OutputStream(
                 samplerate=SAMPLE_RATE,
-                channels=1,
+                channels=2,            # stereo: the mono mix is copied to both speakers
                 dtype="float32",
                 blocksize=256,
                 device=self.config.get("output_device"),
@@ -134,20 +134,20 @@ class AudioEngine:
             self._voices.append([samples.astype(np.float32), 0])
 
     def _output_callback(self, outdata, frames, time_info, status):  # audio thread
-        outdata.fill(0.0)
-        mix = outdata[:, 0]
+        mono = np.zeros(frames, dtype=np.float32)
         with self._voices_lock:
             still_active = []
             for voice in self._voices:
                 samples, pos = voice
                 end = pos + frames
                 chunk = samples[pos:end]
-                mix[: len(chunk)] += chunk
+                mono[: len(chunk)] += chunk
                 voice[1] = end
                 if end < len(samples):
                     still_active.append(voice)
             self._voices = still_active
-        np.clip(mix, -1.0, 1.0, out=mix)
+        np.clip(mono, -1.0, 1.0, out=mono)
+        outdata[:] = mono[:, None]   # duplicate the mono mix across all output channels
 
     # --- Lifecycle --------------------------------------------------------
 
