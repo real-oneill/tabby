@@ -13,7 +13,7 @@
 set -euo pipefail
 
 OVERLAY="dtoverlay=max98357a"
-VOLUME="0.90"
+VOLUME="1.00"
 
 find_config() {
     for f in /boot/firmware/config.txt /boot/config.txt; do
