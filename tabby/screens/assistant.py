@@ -7,6 +7,7 @@ No keyboard: all AI features live here.
 from __future__ import annotations
 
 import io
+import os
 import threading
 import time
 import urllib.request
@@ -19,9 +20,11 @@ from ..assistant import dispatch
 from ..assistant.cat import Cat
 from ..assistant.client import AgentClient
 from ..assistant.stt import VoiceInput
+from ..audio.sfx import load_wav
 from ..ui.widgets import Button, draw_panel, draw_text
 
 _REPLY_HOLD = 5.0   # seconds to keep showing a reply before returning to idle
+_ASSETS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "assets")
 
 
 def _wrap(text: str, width: int) -> list[str]:
@@ -62,8 +65,16 @@ class AssistantScreen(Screen):
                                color=theme.PURPLE, text_color=theme.WHITE, font_size=10)
         self.reply_box = (12, 150, theme.INTERNAL_W - 24, 52)
 
+        # A cat meow that plays through the speaker when the assistant answers.
+        self.no_audio = True
+        try:
+            self._meow = load_wav(os.path.join(_ASSETS, "sounds", "cat.wav"), peak=0.7)
+        except Exception:  # noqa: BLE001 - missing/bad asset shouldn't break the screen
+            self._meow = None
+
     def on_enter(self) -> None:
-        # Warm up the whisper model in the background so the first tap is instant.
+        # Open the output stream for the meow; warm up whisper for an instant first tap.
+        self.no_audio = not self.app.audio.start_output()
         threading.Thread(target=self._prewarm, daemon=True).start()
 
     def _prewarm(self) -> None:
@@ -75,10 +86,16 @@ class AssistantScreen(Screen):
     def on_exit(self) -> None:
         if self.voice.recording:
             self.voice.stop_recording()
+        self.app.audio.stop_output()
 
     @staticmethod
     def _noop() -> None:
         pass
+
+    def _play_meow(self) -> None:
+        """Play the cat sound through the speaker (no-op if audio out is unavailable)."""
+        if self._meow is not None and not self.no_audio:
+            self.app.audio.play_sample(self._meow)
 
     # --- async helper -----------------------------------------------------
 
@@ -174,6 +191,7 @@ class AssistantScreen(Screen):
             self._start_identify()
         else:
             self.state = "replying"
+            self._play_meow()
 
     # --- song identification ----------------------------------------------
 
@@ -212,10 +230,12 @@ class AssistantScreen(Screen):
         if not rec:
             self.reply = "Hmm, I couldn't make out what's playing."
             self.state = "replying"
+            self._play_meow()
             return
         self.now_playing = rec
         self.reply = f"That's {rec['title']} by {rec['artist']}"
         self.state = "now_playing"
+        self._play_meow()
 
     # --- loop -------------------------------------------------------------
 
