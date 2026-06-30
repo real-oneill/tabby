@@ -18,7 +18,7 @@ def make_click(accent: bool, sample_rate: int = SAMPLE_RATE) -> np.ndarray:
     n = int(sample_rate * dur)
     t = np.arange(n) / sample_rate
     env = np.exp(-t * 130.0)
-    amp = 1.0 if accent else 0.9
+    amp = 1.0
     tone = np.sin(2 * np.pi * freq * t) * env * amp
     return tone.astype(np.float32)
 

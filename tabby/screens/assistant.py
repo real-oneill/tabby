@@ -68,7 +68,7 @@ class AssistantScreen(Screen):
         # A cat meow that plays through the speaker when the assistant answers.
         self.no_audio = True
         try:
-            self._meow = load_wav(os.path.join(_ASSETS, "sounds", "cat.wav"), peak=0.92)
+            self._meow = load_wav(os.path.join(_ASSETS, "sounds", "cat.wav"), peak=0.7)
         except Exception:  # noqa: BLE001 - missing/bad asset shouldn't break the screen
             self._meow = None
 
