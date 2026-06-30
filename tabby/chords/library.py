@@ -73,6 +73,72 @@ def _scale_pos(label, fret_lo, fret_hi, per_string, roots) -> ScalePosition:
     return ScalePosition(label, fret_lo, fret_hi, hits, set(roots), sequence)
 
 
+def _ordinal(n: int) -> str:
+    suffix = "TH" if 10 <= n % 100 <= 20 else {1: "ST", 2: "ND", 3: "RD"}.get(n % 10, "TH")
+    return f"{n}{suffix} FRET"
+
+
+# Pitch class of each root name; semitone sets for each scale type.
+_PITCH = {"C": 0, "C#": 1, "D": 2, "Eb": 3, "E": 4, "F": 5, "F#": 6,
+          "G": 7, "G#": 8, "A": 9, "Bb": 10, "B": 11}
+_SCALE_INTERVALS = {
+    "min_pent": {0, 3, 5, 7, 10},
+    "maj_pent": {0, 2, 4, 7, 9},
+    "major": {0, 2, 4, 5, 7, 9, 11},
+    "mixolydian": {0, 2, 4, 5, 7, 9, 10},
+}
+# Notes per string for each scale type: pentatonics 2, seven-note scales 3.
+_NPS = {"min_pent": 2, "maj_pent": 2, "major": 3, "mixolydian": 3}
+
+
+def _gen_scale(name: str, root: str, kind: str, lo_max: int = 12) -> Scale:
+    """Build every neck position of a scale as an n-notes-per-string box (2 for
+    pentatonics, 3 for diatonic). One position per scale-tone on the low-E string:
+    the ascending scale is dealt out n notes to a string, giving even, play-along
+    friendly runs and the recognizable CAGED / 3-nps shapes. Cycle them like chords."""
+    root_pc = _PITCH[root]
+    intervals = _SCALE_INTERVALS[kind]
+    n = _NPS[kind]
+
+    def is_tone(midi: int) -> bool:
+        return (midi - root_pc) % 12 in intervals
+
+    starts = [f for f in range(0, lo_max) if is_tone(STANDARD_TUNING[5] + f)]
+    positions = []
+    for f0 in starts:
+        # Ascending scale pitches from low-E+f0, dealt n-per-string (string 6 first).
+        pitches: list[int] = []
+        p = STANDARD_TUNING[5] + f0
+        while len(pitches) < 6 * n:
+            if is_tone(p):
+                pitches.append(p)
+            p += 1
+        per_string: dict[int, list[int]] = {}
+        roots: set[tuple[int, int]] = set()
+        for i in range(6):
+            s = 6 - i                      # i=0 -> low E (string 6) ... i=5 -> high E
+            for j in range(n):
+                pitch = pitches[i * n + j]
+                fret = pitch - STANDARD_TUNING[s - 1]
+                per_string.setdefault(s, []).append(fret)
+                if (pitch - root_pc) % 12 == 0:
+                    roots.add((s, fret))
+        frets = [f for fs in per_string.values() for f in fs]
+        if min(frets) < 0:
+            continue   # this shape isn't playable that low; it appears higher up the neck
+        label = "OPEN POSITION" if f0 == 0 else _ordinal(f0)
+        positions.append(_scale_pos(label, min(frets), max(frets), per_string, roots))
+    return Scale(name, root, kind, positions)
+
+
+# Movable CAGED barre shapes (root on the 6th string = E-shape, on the 5th = A-shape),
+# so the open triads can also be played up the neck.
+def _e_major(r): return _chord_pos(_ordinal(r), r, [r, r + 2, r + 2, r + 1, r, r], [1, 3, 4, 2, 1, 1], barre=(1, 6, 1, r))
+def _a_major(r): return _chord_pos(_ordinal(r), r, [MUTED, r, r + 2, r + 2, r + 2, r], [0, 1, 3, 3, 3, 1], barre=(1, 5, 1, r))
+def _e_minor(r): return _chord_pos(_ordinal(r), r, [r, r + 2, r + 2, r, r, r], [1, 3, 4, 1, 1, 1], barre=(1, 6, 1, r))
+def _a_minor(r): return _chord_pos(_ordinal(r), r, [MUTED, r, r + 2, r + 2, r + 1, r], [0, 1, 3, 4, 2, 1], barre=(1, 5, 1, r))
+
+
 # --- chords ---------------------------------------------------------------
 
 CHORDS: list[Chord] = [
@@ -242,56 +308,33 @@ CHORDS: list[Chord] = [
     ]),
 ]
 
+# Give the open triads movable barre voicings up the neck (E-shape / A-shape), so each
+# can be played in more than one place (e.g. D major open, A-shape at 5, E-shape at 10).
+_CAGED_EXTRA = {
+    "E MAJOR": [_a_major(7)],
+    "A MAJOR": [_e_major(5)],
+    "D MAJOR": [_a_major(5), _e_major(10)],
+    "G MAJOR": [_e_major(3), _a_major(10)],
+    "C MAJOR": [_a_major(3), _e_major(8)],
+    "E MINOR": [_a_minor(7)],
+    "A MINOR": [_e_minor(5)],
+    "D MINOR": [_a_minor(5), _e_minor(10)],
+}
+for _chord in CHORDS:
+    if _chord.name in _CAGED_EXTRA:
+        _chord.positions.extend(_CAGED_EXTRA[_chord.name])
+
 
 # --- scales ---------------------------------------------------------------
 
+# Every scale, generated at all neck positions (one box per low-E scale tone).
 SCALES: list[Scale] = [
-    Scale("E MINOR PENTATONIC", "E", "min_pent", [
-        # Three shapes up the neck: open box, 2nd-fret box, and the open shape an octave up.
-        _scale_pos("OPEN POSITION", 0, 3,
-                   {6: [0, 3], 5: [0, 2], 4: [0, 2], 3: [0, 2], 2: [0, 3], 1: [0, 3]},
-                   roots={(6, 0), (4, 2), (1, 0)}),
-        _scale_pos("2ND FRET", 2, 5,
-                   {6: [3, 5], 5: [2, 5], 4: [2, 5], 3: [2, 4], 2: [3, 5], 1: [3, 5]},
-                   roots={(4, 2), (2, 5)}),
-        _scale_pos("12TH FRET", 12, 15,
-                   {6: [12, 15], 5: [12, 14], 4: [12, 14], 3: [12, 14], 2: [12, 15], 1: [12, 15]},
-                   roots={(6, 12), (4, 14), (1, 12)}),
-    ]),
-    Scale("A MINOR PENTATONIC", "A", "min_pent", [
-        # Open box, the classic 5th-fret box, and the 7th-fret box.
-        _scale_pos("OPEN POSITION", 0, 3,
-                   {6: [0, 3], 5: [0, 3], 4: [0, 2], 3: [0, 2], 2: [1, 3], 1: [0, 3]},
-                   roots={(5, 0), (3, 2)}),
-        _scale_pos("5TH FRET", 5, 8,
-                   {6: [5, 8], 5: [5, 7], 4: [5, 7], 3: [5, 7], 2: [5, 8], 1: [5, 8]},
-                   roots={(6, 5), (4, 7), (1, 5)}),
-        _scale_pos("7TH FRET", 7, 10,
-                   {6: [8, 10], 5: [7, 10], 4: [7, 10], 3: [7, 9], 2: [8, 10], 1: [8, 10]},
-                   roots={(4, 7), (2, 10)}),
-    ]),
-    Scale("A MAJOR PENTATONIC", "A", "maj_pent", [
-        _scale_pos("2ND FRET", 2, 5,
-                   {6: [2, 5], 5: [2, 4], 4: [2, 4], 3: [2, 4], 2: [2, 5], 1: [2, 5]},
-                   roots={(6, 5), (3, 2), (1, 5)}),
-    ]),
-    Scale("C MAJOR", "C", "major", [
-        _scale_pos("OPEN POSITION", 0, 3,
-                   {6: [0, 1, 3], 5: [0, 2, 3], 4: [0, 2, 3], 3: [0, 2], 2: [0, 1, 3], 1: [0, 1, 3]},
-                   roots={(5, 3), (2, 1)}),
-    ]),
-    Scale("G MIXOLYDIAN", "G", "mixolydian", [
-        # Same open-position note pool as C major, rooted on G (the b7 mode of C).
-        _scale_pos("OPEN POSITION", 0, 3,
-                   {6: [0, 1, 3], 5: [0, 2, 3], 4: [0, 2, 3], 3: [0, 2], 2: [0, 1, 3], 1: [0, 1, 3]},
-                   roots={(6, 3), (3, 0), (1, 3)}),
-    ]),
-    Scale("A MIXOLYDIAN", "A", "mixolydian", [
-        # A B C# D E F# G, open position.
-        _scale_pos("OPEN POSITION", 0, 3,
-                   {6: [0, 2, 3], 5: [0, 2], 4: [0, 2], 3: [0, 2], 2: [0, 2, 3], 1: [0, 2, 3]},
-                   roots={(5, 0), (3, 2)}),
-    ]),
+    _gen_scale("E MINOR PENTATONIC", "E", "min_pent"),
+    _gen_scale("A MINOR PENTATONIC", "A", "min_pent"),
+    _gen_scale("A MAJOR PENTATONIC", "A", "maj_pent"),
+    _gen_scale("C MAJOR", "C", "major"),
+    _gen_scale("G MIXOLYDIAN", "G", "mixolydian"),
+    _gen_scale("A MIXOLYDIAN", "A", "mixolydian"),
 ]
 
 

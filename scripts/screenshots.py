@@ -164,6 +164,18 @@ def main():
     ch._open_item(apent)()
     ch._cycle_pos(2)
     save(app, "chords_scale_box")
+    # D major's new movable barre position (A-shape at 5th fret).
+    ch._set_category("chord")() if hasattr(ch, "_set_category") else ch._open_group("MAJOR")()
+    dmaj = next(c for c in library.CHORDS if c.name == "D MAJOR")
+    ch._open_item(dmaj)()
+    ch._cycle_pos(1)
+    save(app, "chords_dmaj_barre")
+    # A mid-neck scale box (E minor pentatonic, 5th-fret position).
+    ch._open_group("SCALES")()
+    epent2 = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
+    ch._open_item(epent2)()
+    ch._cycle_pos(2)
+    save(app, "chords_scale_mid")
     # Play-along view.
     ch._to_play()
     ch.player.playing = True
