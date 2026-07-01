@@ -327,14 +327,18 @@ for _chord in CHORDS:
 
 # --- scales ---------------------------------------------------------------
 
-# Every scale, generated at all neck positions (one box per low-E scale tone).
+# Every scale type in all 12 keys, each generated at all neck positions.
+_SCALE_TYPES = [
+    ("min_pent", "MINOR PENTATONIC"),
+    ("maj_pent", "MAJOR PENTATONIC"),
+    ("major", "MAJOR SCALE"),
+    ("mixolydian", "MIXOLYDIAN"),
+]
+_SCALE_ROOTS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
+
 SCALES: list[Scale] = [
-    _gen_scale("E MINOR PENTATONIC", "E", "min_pent"),
-    _gen_scale("A MINOR PENTATONIC", "A", "min_pent"),
-    _gen_scale("A MAJOR PENTATONIC", "A", "maj_pent"),
-    _gen_scale("C MAJOR", "C", "major"),
-    _gen_scale("G MIXOLYDIAN", "G", "mixolydian"),
-    _gen_scale("A MIXOLYDIAN", "A", "mixolydian"),
+    s for kind, disp in _SCALE_TYPES for root in _SCALE_ROOTS
+    for s in [_gen_scale(f"{root} {disp}", root, kind)] if s.positions
 ]
 
 

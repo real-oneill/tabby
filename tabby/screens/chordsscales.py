@@ -21,9 +21,12 @@ from ..ui.widgets import Button, draw_text
 _W = theme.INTERNAL_W
 _PER_PAGE = 6
 
-# Top-level browse menu: chord groups + scales. Each opens a filtered list.
+# Top-level browse menu: chord groups, then scale types. Each opens a filtered list.
+# Scale-type keys are prefixed "S_" + the scale's kind.
 _MENU = [("MAJOR CHORDS", "MAJOR"), ("MINOR CHORDS", "MINOR"), ("POWER (5TH)", "POWER"),
-         ("7TH CHORDS", "7TH"), ("9TH CHORDS", "9TH"), ("SCALES", "SCALES")]
+         ("7TH CHORDS", "7TH"), ("9TH CHORDS", "9TH"),
+         ("MINOR PENTATONIC", "S_min_pent"), ("MAJOR PENTATONIC", "S_maj_pent"),
+         ("MAJOR SCALE", "S_major"), ("MIXOLYDIAN", "S_mixolydian")]
 
 
 def _chord_group(chord) -> str:
@@ -87,8 +90,9 @@ class ChordsScalesScreen(Screen):
     # --- Browse (category menu -> filtered list) --------------------------
 
     def _group_items(self) -> list:
-        if self.group == "SCALES":
-            return library.SCALES
+        if self.group and self.group.startswith("S_"):
+            kind = self.group[2:]
+            return [s for s in library.SCALES if s.kind == kind]
         return [c for c in library.CHORDS if _chord_group(c) == self.group]
 
     def _to_browse(self) -> None:
@@ -103,7 +107,7 @@ class ChordsScalesScreen(Screen):
         def go() -> None:
             self.group = key
             self.page = 0
-            self.title = "SCALES" if key == "SCALES" else "CHORDS"
+            self.title = "SCALES" if key.startswith("S_") else "CHORDS"
             self.mode = "browse"
             self._build_browse()
         return go
@@ -121,12 +125,12 @@ class ChordsScalesScreen(Screen):
 
     def _build_menu(self) -> None:
         self.nav_buttons = []
-        y = TOPBAR_H + 8
+        y = TOPBAR_H + 4
         for label, key in _MENU:
-            color = theme.GOOD if key == "SCALES" else theme.PANEL
-            self.nav_buttons.append(Button((12, y, _W - 24, 24), label, self._open_group(key),
+            color = theme.GOOD if key.startswith("S_") else theme.PANEL
+            self.nav_buttons.append(Button((12, y, _W - 24, 20), label, self._open_group(key),
                                           color=color, text_color=theme.WHITE, font_size=10))
-            y += 28
+            y += 23
 
     def _build_list(self) -> None:
         self.nav_buttons = [
@@ -197,7 +201,7 @@ class ChordsScalesScreen(Screen):
             return False
         kind, item = match
         # Set the group so the diagram's LIST button returns to a sensible list.
-        self.group = "SCALES" if kind == "scale" else _chord_group(item)
+        self.group = ("S_" + item.kind) if kind == "scale" else _chord_group(item)
         self._open_item(item)()
         return True
 

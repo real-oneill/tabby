@@ -181,10 +181,11 @@ def test_chords_scales():
         screen._open_group(key)()
         assert screen._group_items(), f"group {key} is empty"
 
-    # Open the SCALES group -> a scale -> detail (diagram renders) -> play.
-    screen._open_group("SCALES")()
-    assert screen.group == "SCALES" and screen._group_items() is library.SCALES
-    scale = library.SCALES[0]
+    # Every scale type is offered in all 12 keys; pick A major pentatonic.
+    screen._open_group("S_maj_pent")()
+    majpent = screen._group_items()
+    assert len(majpent) == 12, f"expected 12 major-pentatonic keys, got {len(majpent)}"
+    scale = next(s for s in majpent if s.name == "A MAJOR PENTATONIC")
     screen._open_item(scale)()
     assert screen.mode == "detail" and screen.kind == "scale"
     screen.draw(app.canvas)                 # neck diagram must not crash
