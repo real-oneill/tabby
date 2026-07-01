@@ -113,9 +113,9 @@ def main():
     ch = app.current
     save(app, "chords_menu")               # top-level category menu
     from tabby.chords import library
-    ch._open_group("7TH")()                 # a filtered chord list
+    ch._open_section("CHORDS")(); ch._open_group("7TH")()                 # a filtered chord list
     save(app, "chords_list")
-    ch._open_group("S_maj_pent")()          # a scale type in all 12 keys
+    ch._open_section("SCALES")(); ch._open_group("maj_pent")()          # a scale type in all 12 keys
     save(app, "chords_scale_keys")
     # Chord diagram (E major, open) + the 12th-fret barre position.
     emaj = next(c for c in library.CHORDS if c.name == "E MAJOR")
@@ -157,7 +157,7 @@ def main():
     ch._open_item(f9)()
     save(app, "chords_chord_f9")
     # Scale neck diagram (E minor pentatonic, open).
-    ch._open_group("S_min_pent")()
+    ch._open_section("SCALES")(); ch._open_group("min_pent")()
     epent = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
     ch._open_item(epent)()
     save(app, "chords_scale")
@@ -167,13 +167,13 @@ def main():
     ch._cycle_pos(2)
     save(app, "chords_scale_box")
     # D major's new movable barre position (A-shape at 5th fret).
-    ch._open_group("MAJOR")()
+    ch._open_section("CHORDS")(); ch._open_group("MAJOR")()
     dmaj = next(c for c in library.CHORDS if c.name == "D MAJOR")
     ch._open_item(dmaj)()
     ch._cycle_pos(1)
     save(app, "chords_dmaj_barre")
     # A mid-neck scale box (E minor pentatonic, 5th-fret position).
-    ch._open_group("S_min_pent")()
+    ch._open_section("SCALES")(); ch._open_group("min_pent")()
     epent2 = next(s for s in library.SCALES if s.name == "E MINOR PENTATONIC")
     ch._open_item(epent2)()
     ch._cycle_pos(2)

@@ -171,21 +171,24 @@ def test_chords_scales():
     app = App(fullscreen=False, scale=2)
     app.navigate("chords")
     screen = app.current
-    assert screen.mode == "browse" and screen.group is None, "should open on the category menu"
+    assert screen.mode == "browse" and screen.section is None, "should open on the top menu"
 
-    # Every chord maps to a menu group, and each chord group resolves to items.
-    from tabby.screens.chordsscales import _MENU, _chord_group
+    # CHORDS section: every chord group resolves to items.
+    from tabby.screens.chordsscales import _CHORD_GROUPS, _SCALE_GROUPS, _chord_group
     for c in library.CHORDS:
         assert _chord_group(c) in {"MAJOR", "MINOR", "POWER", "7TH", "9TH"}, c.name
-    for _label, key in _MENU:
+    screen._open_section("CHORDS")()
+    for _label, key in _CHORD_GROUPS:
         screen._open_group(key)()
-        assert screen._group_items(), f"group {key} is empty"
+        assert screen._group_items(), f"chord group {key} is empty"
 
-    # Every scale type is offered in all 12 keys; pick A major pentatonic.
-    screen._open_group("S_maj_pent")()
-    majpent = screen._group_items()
-    assert len(majpent) == 12, f"expected 12 major-pentatonic keys, got {len(majpent)}"
-    scale = next(s for s in majpent if s.name == "A MAJOR PENTATONIC")
+    # SCALES section: every type is offered in all 12 keys. Drill to A major pentatonic.
+    screen._open_section("SCALES")()
+    for _label, key in _SCALE_GROUPS:
+        screen._open_group(key)()
+        assert len(screen._group_items()) == 12, f"scale type {key} != 12 keys"
+    screen._open_group("maj_pent")()
+    scale = next(s for s in screen._group_items() if s.name == "A MAJOR PENTATONIC")
     screen._open_item(scale)()
     assert screen.mode == "detail" and screen.kind == "scale"
     screen.draw(app.canvas)                 # neck diagram must not crash
