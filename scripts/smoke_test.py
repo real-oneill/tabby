@@ -239,6 +239,17 @@ def test_chords_scales():
             screen._open_item(sc)()
             screen.draw(app.canvas)
 
+    # Favorites: star a chord + scale, see them in the FAVORITES list, then clear.
+    screen._open_section("CHORDS")(); screen._open_group("MAJOR")()
+    dmaj = next(c for c in screen._group_items() if c.name == "D MAJOR")
+    screen._open_item(dmaj)(); screen._toggle_fav()
+    assert app.config.is_favorite("chord", "D MAJOR")
+    screen._open_section("FAVORITES")()
+    assert "D MAJOR" in [i.name for i in screen._favorite_items()]
+    screen.draw(app.canvas)                 # favorites list renders
+    screen._open_item(dmaj)(); screen._toggle_fav()   # unstar -> clean up
+    assert not app.config.is_favorite("chord", "D MAJOR")
+
     # Assistant voice lookup lands on the right diagram.
     from tabby.assistant import dispatch
     while len(app.stack) > 1:
@@ -246,7 +257,7 @@ def test_chords_scales():
     dispatch.run_actions(app, [{"type": "show_chord", "name": "E major"}])
     assert app.current.title == "CHORDS" and app.current.selected.name == "E MAJOR", "voice lookup failed"
     app._shutdown()
-    print("  chords/scales: browse->detail->play, diagrams, builders, voice lookup OK")
+    print("  chords/scales: browse->detail->play, favorites, voice lookup OK")
 
 
 def test_assistant():

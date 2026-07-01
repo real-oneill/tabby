@@ -81,8 +81,9 @@ class TabPlayerScreen(Screen):
 
         self.nav_buttons: list[Button] = []   # current mode's list/nav buttons
 
-        # Delete-from-list state + confirm modal.
+        # Delete-from-list + favorite-toggle state + confirm modal.
         self.delete_mode = False
+        self.fav_mode = False
         self.pending_delete = None
         modal = pygame.Rect(0, 0, 260, 92)
         modal.center = (_W // 2, theme.INTERNAL_H // 2)
@@ -141,24 +142,41 @@ class TabPlayerScreen(Screen):
         self.mode = "browse"
         self.title = "TABS"
         self.delete_mode = False
+        self.fav_mode = False
         self.pending_delete = None
         self._build_browse()
 
+    def _ordered_entries(self) -> list:
+        """Favorited tabs first (so they're easy to find), then the rest."""
+        favs = set(self.app.config.favorites("tab"))
+        fav = [e for e in self.entries if e.path in favs]
+        rest = [e for e in self.entries if e.path not in favs]
+        return fav + rest
+
     def _build_browse(self) -> None:
         self.nav_buttons = [
-            Button((12, TOPBAR_H + 8, _W - 94, 22), "* SEARCH SONGSTERR *", self._to_search,
+            Button((12, TOPBAR_H + 8, _W - 158, 22), "* SEARCH SONGSTERR *", self._to_search,
                    color=theme.PURPLE, text_color=theme.WHITE, font_size=8),
+            Button((_W - 142, TOPBAR_H + 8, 60, 22), "DONE" if self.fav_mode else "FAV",
+                   self._toggle_fav_mode, color=theme.ACCENT if self.fav_mode else theme.SHADOW,
+                   text_color=theme.BLACK if self.fav_mode else theme.WHITE, font_size=8),
             Button((_W - 78, TOPBAR_H + 8, 66, 22), "DONE" if self.delete_mode else "DELETE",
                    self._toggle_delete, color=theme.BAD if self.delete_mode else theme.SHADOW,
                    text_color=theme.WHITE, font_size=8),
         ]
+        entries = self._ordered_entries()
+        favs = set(self.app.config.favorites("tab"))
         y = TOPBAR_H + 8 + 28
         start = self.page * 6
         tags = {"gp": "GP", "tabby": "SS", "text": "TXT"}
         colors = {"gp": theme.ACCENT, "tabby": theme.GOOD, "text": theme.TEXT}
-        for entry in self.entries[start : start + 6]:
-            label = f"{_truncate(entry.name, 32)}  [{tags.get(entry.kind, 'TXT')}]"
-            if self.delete_mode:
+        for entry in entries[start : start + 6]:
+            star = "* " if entry.path in favs else ""
+            label = f"{star}{_truncate(entry.name, 30)}  [{tags.get(entry.kind, 'TXT')}]"
+            if self.fav_mode:
+                callback = self._toggle_tab_fav(entry)
+                tcolor = theme.ACCENT if entry.path in favs else theme.TEXT
+            elif self.delete_mode:
                 callback = self._ask_delete(entry)
                 tcolor = theme.BAD if entry.deletable else theme.SHADOW
             else:
@@ -167,12 +185,25 @@ class TabPlayerScreen(Screen):
             self.nav_buttons.append(Button((12, y, _W - 24, 22), label, callback,
                                           color=theme.PANEL, text_color=tcolor, font_size=8))
             y += 26
-        self._add_pager(len(self.entries), 6, self.page, self._turn_browse)
+        self._add_pager(len(entries), 6, self.page, self._turn_browse)
 
-    # --- Delete from list -------------------------------------------------
+    # --- Favorite / delete from list --------------------------------------
+
+    def _toggle_fav_mode(self) -> None:
+        self.fav_mode = not self.fav_mode
+        self.delete_mode = False
+        self.error = ""
+        self._build_browse()
+
+    def _toggle_tab_fav(self, entry):
+        def go() -> None:
+            self.app.config.toggle_favorite("tab", entry.path)
+            self._build_browse()
+        return go
 
     def _toggle_delete(self) -> None:
         self.delete_mode = not self.delete_mode
+        self.fav_mode = False
         self.error = ""
         self._build_browse()
 
@@ -408,6 +439,8 @@ class TabPlayerScreen(Screen):
             btn.draw(surface)
         if self.mode == "browse" and self.delete_mode and self.pending_delete is None:
             draw_text(surface, "TAP A TAB TO DELETE", 8, theme.BAD, center=(_W // 2, 210))
+        if self.mode == "browse" and self.fav_mode:
+            draw_text(surface, "TAP A TAB TO STAR / UNSTAR", 8, theme.ACCENT, center=(_W // 2, 210))
         if self.pending_delete is not None:
             self._draw_delete_modal(surface)
 

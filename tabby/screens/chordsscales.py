@@ -95,6 +95,15 @@ class ChordsScalesScreen(Screen):
             return [s for s in library.SCALES if s.kind == self.group]
         return [c for c in library.CHORDS if _chord_group(c) == self.group]
 
+    def _favorite_items(self) -> list:
+        cfg = self.app.config
+        ch, sc = set(cfg.favorites("chord")), set(cfg.favorites("scale"))
+        return ([c for c in library.CHORDS if c.name in ch]
+                + [s for s in library.SCALES if s.name in sc])
+
+    def _list_items(self) -> list:
+        return self._favorite_items() if self.section == "FAVORITES" else self._group_items()
+
     def _to_top(self) -> None:
         """Top level: choose CHORDS or SCALES."""
         self.section = None
@@ -137,17 +146,19 @@ class ChordsScalesScreen(Screen):
     def _build_browse(self) -> None:
         if self.section is None:
             self._build_top()
-        elif self.group is None:
-            self._build_groups()
-        else:
+        elif self.section == "FAVORITES" or self.group is not None:
             self._build_list()
+        else:
+            self._build_groups()
 
     def _build_top(self) -> None:
         self.nav_buttons = [
-            Button((12, TOPBAR_H + 12, _W - 24, 44), "CHORDS", self._open_section("CHORDS"),
+            Button((12, TOPBAR_H + 8, _W - 24, 40), "CHORDS", self._open_section("CHORDS"),
                    color=theme.PANEL, text_color=theme.WHITE, font_size=16),
-            Button((12, TOPBAR_H + 68, _W - 24, 44), "SCALES", self._open_section("SCALES"),
+            Button((12, TOPBAR_H + 54, _W - 24, 40), "SCALES", self._open_section("SCALES"),
                    color=theme.GOOD, text_color=theme.WHITE, font_size=16),
+            Button((12, TOPBAR_H + 100, _W - 24, 40), "FAVORITES", self._open_section("FAVORITES"),
+                   color=theme.ACCENT, text_color=theme.BLACK, font_size=16),
         ]
 
     def _build_groups(self) -> None:
@@ -162,9 +173,10 @@ class ChordsScalesScreen(Screen):
             y += 28
 
     def _build_list(self) -> None:
-        self.nav_buttons = [Button((12, TOPBAR_H + 8, 90, 22), "< BACK", self._to_groups,
+        back = self._to_top if self.section == "FAVORITES" else self._to_groups
+        self.nav_buttons = [Button((12, TOPBAR_H + 8, 90, 22), "< BACK", back,
                                    color=theme.SHADOW, text_color=theme.WHITE, font_size=8)]
-        items = self._group_items()
+        items = self._list_items()
         start = self.page * _PER_PAGE
         y = TOPBAR_H + 8 + 28
         for item in items[start:start + _PER_PAGE]:
@@ -180,7 +192,7 @@ class ChordsScalesScreen(Screen):
         return "chord" if isinstance(item, library.Chord) else "scale"
 
     def _turn(self, delta: int) -> None:
-        pages = max(1, (len(self._group_items()) + _PER_PAGE - 1) // _PER_PAGE)
+        pages = max(1, (len(self._list_items()) + _PER_PAGE - 1) // _PER_PAGE)
         self.page = (self.page + delta) % pages
         self._build_browse()
 
@@ -207,9 +219,18 @@ class ChordsScalesScreen(Screen):
             btns.append(Button((108, 182, 46, 26), "NEXT", lambda: self._cycle_pos(1), color=theme.SHADOW, text_color=theme.WHITE, font_size=8))
         if self.kind == "chord":
             label = "STRUM" if self.chord_mode == "arpeggio" else "ARP"
-            btns.append(Button((160, 182, 72, 26), label, self._toggle_chord_mode, color=theme.PANEL, text_color=theme.WHITE, font_size=8))
-        btns.append(Button((_W - 70, 182, 62, 26), "PLAY", self._to_play, color=theme.GOOD, text_color=theme.BLACK, font_size=12))
+            btns.append(Button((160, 182, 60, 26), label, self._toggle_chord_mode, color=theme.PANEL, text_color=theme.WHITE, font_size=8))
+        fav = self.selected is not None and self.app.config.is_favorite(self.kind, self.selected.name)
+        btns.append(Button((226, 182, 56, 26), "* FAV" if fav else "FAV", self._toggle_fav,
+                           color=theme.ACCENT if fav else theme.PANEL,
+                           text_color=theme.BLACK if fav else theme.WHITE, font_size=8))
+        btns.append(Button((_W - 62, 182, 54, 26), "PLAY", self._to_play, color=theme.GOOD, text_color=theme.BLACK, font_size=12))
         self.detail_buttons = btns
+
+    def _toggle_fav(self) -> None:
+        if self.selected is not None:
+            self.app.config.toggle_favorite(self.kind, self.selected.name)
+            self._build_detail_buttons()
 
     def _cycle_pos(self, delta: int) -> None:
         if self.selected is None:
@@ -307,6 +328,9 @@ class ChordsScalesScreen(Screen):
         if self.mode == "browse":
             for btn in self.nav_buttons:
                 btn.draw(surface)
+            if self.section == "FAVORITES" and not self._favorite_items():
+                draw_text(surface, "NO FAVORITES YET", 10, theme.TEXT_DIM, center=(_W // 2, 110))
+                draw_text(surface, "STAR A CHORD OR SCALE WITH FAV", 8, theme.TEXT_DIM, center=(_W // 2, 130))
         elif self.mode == "detail":
             self._draw_detail(surface)
         else:

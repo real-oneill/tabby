@@ -21,6 +21,7 @@ DEFAULTS: dict[str, Any] = {
     "tabs_dir": "~/tabby-tabs",  # where the user drops their own .txt tabs
     "last_tab": None,            # path of the most recently opened tab
     "scroll_speed": 2.0,         # tab auto-scroll speed, lines/second
+    "favorites": {"chord": [], "scale": [], "tab": []},  # starred items by id, per kind
 }
 
 
@@ -56,3 +57,26 @@ class Config:
     def set(self, key: str, value: Any) -> None:
         self._data[key] = value
         self.save()
+
+    # --- favorites (starred chords / scales / tabs) -----------------------
+
+    def favorites(self, kind: str) -> list:
+        """Return the list of favorited ids for ``kind`` ('chord'|'scale'|'tab')."""
+        return list((self._data.get("favorites") or {}).get(kind, []))
+
+    def is_favorite(self, kind: str, item_id: str) -> bool:
+        return item_id in (self._data.get("favorites") or {}).get(kind, [])
+
+    def toggle_favorite(self, kind: str, item_id: str) -> bool:
+        """Add/remove a favorite; returns the new state (True = now favorited)."""
+        favs = dict(self._data.get("favorites") or {})
+        ids = list(favs.get(kind, []))
+        if item_id in ids:
+            ids.remove(item_id)
+            now = False
+        else:
+            ids.append(item_id)
+            now = True
+        favs[kind] = ids
+        self.set("favorites", favs)
+        return now
